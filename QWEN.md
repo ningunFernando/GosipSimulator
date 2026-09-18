@@ -203,12 +203,23 @@ placeholders. Si diverge de la de HamsterBall, da igual, ninguna se va a volver 
 
 1. **Falta el remote `origin`.** Fernando crea el repo `GosipSimulator` en GitHub y pasa la URL. Hasta
    entonces no hay dónde empujar, y no se empuja nada.
-2. **`.qwen/settings.json` está divergente y sin commitear.** La versión rastreada trae los `Bash(...)`
-   de la plantilla; la del worktree trae los `Read(...)` de esta sesión más la entrada `mcpServers`. Se
-   dejó sin commitear a propósito: no tiene sentido meter permisos de sesión en el repo. Ojo con una
-   entrada, `Read(//Users/ningunfernando/.qwen/**)`, porque el `settings.json` global de Qwen contiene
-   una clave de API en claro. Decidir entre quitar esa entrada, commitear el archivo tal cual, o
-   añadir `.qwen/` al `.gitignore` de este fork.
+2. **Resuelto el 2026-09-17: `.qwen/settings.json` está commiteado y acotado.** Fernando commiteó en
+   `9d8313a` los permisos que la sesión había ido acumulando, y el commit siguiente los acotó. El
+   resultado, comparado con lo que traía la plantilla:
+   - **Fuera `Read(//Users/ningunfernando/.qwen/**)`**, que daba acceso al `settings.json` global de
+     Qwen y por tanto a una clave de API en claro. La clave nunca estuvo en el repo, pero el permiso
+     sí viajaba con él, y lo tendría cualquiera que clonara el proyecto.
+   - **Fuera `Bash(* *)`**, que auto-aprobaba cualquier comando de dos palabras o más. Fuera también
+     `Bash(esac)`, `Bash(do *)`, `Bash(done)` y `Bash(command *)`: artefactos del parser de permisos
+     sobre palabras clave del shell, no intenciones reales. Tres de los cuatro venían de la plantilla.
+   - **Se conservan** los `Read(...)` de la plantilla, del Editor y del CLI, más `ls`, `python3` y
+     `curl`, y se añade el CLI de Unity MCP por ruta absoluta, que es la vía de verificación del
+     proyecto.
+   - **No se añadió `Bash(git *)` a propósito**: con ese comodín quedarían auto-aprobados `git push` y
+     `git reset --hard`, y la convención es que el push lo hace Fernando.
+
+   Si el repo deja de ser privado o entra un colaborador, revisar otra vez los `Read(...)`, porque
+   viajan con el repo y son rutas de esta máquina.
 3. **No se pudo comprobar si la plantilla tenía cambios sin commitear** en el momento del fork, por el
    guard del shell. `git -C ../Unity/DecoupledTemplate status` desde fuera de esta sesión lo resuelve.
    Si había algo, este fork no lo tiene.

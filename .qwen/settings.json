@@ -3,12 +3,12 @@
     "allow": [
       "Read(//Users/ningunfernando/Projects/Unity/DecoupledTemplate/**)",
       "Read(//Applications/Unity/Hub/Editor/**)",
-      "Read(//Users/ningunfernando/.qwen/**)",
       "Read(//Users/ningunfernando/.local/**)",
       "Read(//Users/ningunfernando/.claude/skills/isuzu-unity-cli/**)",
-      "Bash(* *)",
-      "Bash(esac)",
-      "Bash(ls *)"
+      "Bash(ls *)",
+      "Bash(python3 *)",
+      "Bash(curl *)",
+      "Bash(/Users/ningunfernando/.local/bin/isuzu-unity-cli *)"
     ]
   },
   "mcpServers": {
