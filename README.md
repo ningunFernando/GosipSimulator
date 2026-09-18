@@ -137,10 +137,10 @@ Los tres placeholders de la guía valen aquí `GosipSimulator`:
 | `{ROOT_NS}` | Namespace raíz | `GosipSimulator` |
 | `{ASM}` | Prefijo de las assemblies | `GosipSimulator` |
 
-El repo arranca de `upstream/main` en `adad2b6`, y el renombrado completo es un único commit
-(`778fff6`) hecho **sin abrir el Editor**, como un pase de texto sobre la copia recién clonada. La guía
-y la sección correspondiente de la plantilla piden hacerlo con el Editor abierto y módulo a módulo;
-aquí no hizo falta, por una razón concreta:
+El repo arranca del `main` de la plantilla en `adad2b6`, que sigue siendo ancestro de este `main`, y
+el renombrado completo es un único commit (`778fff6`) hecho **sin abrir el Editor**, como un pase de
+texto sobre la copia recién clonada. La guía y la sección correspondiente de la plantilla piden
+hacerlo con el Editor abierto y módulo a módulo; aquí no hizo falta, por una razón concreta:
 
 - Las escenas y los prefabs enlazan cada componente por el **GUID** del script
   (`m_Script: {fileID: 11500000, guid: ..., type: 3}`). `m_EditorClassIdentifier` es solo una pista para

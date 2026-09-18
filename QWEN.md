@@ -16,9 +16,17 @@ Cómo está hecho el proyecto hoy: `Assets/Docs/ARCHITECTURE.md`. Cómo abrirlo 
 ## Origen
 
 Fork de [`DecoupledTemplate`](https://github.com/ningunFernando/DecoupledTemplate), que es una
-plantilla de arquitectura y no un juego. El remote `upstream` apunta ahí, con la URL de push
-deshabilitada a propósito para que ningún accidente escriba en la plantilla. El punto de partida es
-`upstream/main` en `adad2b6`.
+plantilla de arquitectura y no un juego. El punto de partida es su `main` en `adad2b6`, que sigue
+siendo ancestro de este `main`, así que la historia de la plantilla está entera en este repo.
+
+**No hay ningún remote a la plantilla, y es deliberado.** Al configurar el fork se añadió uno llamado
+`upstream` con la URL de push sustituida por un centinela, para poder traer arreglos futuros de la
+plantilla sin riesgo de escribir en ella. Se quitó el 2026-09-17, decisión de Fernando, porque dejaba
+el repo en un estado que se presta a un error caro: sin `origin` configurado, `git push` no tiene
+destino y git sugiere `git push --set-upstream upstream main`, o sea, empujar los commits de este
+juego a la plantilla. Lo único que lo impedía era ese centinela, y tenía forma de configuración a
+medio rellenar, así que se leía como un olvido y no como un bloqueo. Si algún día hace falta traer
+algo de la plantilla: añadir el remote, hacer fetch, y volver a quitarlo.
 
 De la plantilla se hereda todo el andamiaje: `EventBus` tipado, bootstrap ordenado, estados y pausa,
 pool de objetos, guardado en tres capas con migraciones, jugador 3D con `Rigidbody`, el ciclo de
@@ -201,8 +209,10 @@ placeholders. Si diverge de la de HamsterBall, da igual, ninguna se va a volver 
 
 ## Pendientes
 
-1. **Falta el remote `origin`.** Fernando crea el repo `GosipSimulator` en GitHub y pasa la URL. Hasta
-   entonces no hay dónde empujar, y no se empuja nada.
+1. **Falta el remote `origin`, y ahora mismo no queda ningún remote.** Fernando crea el repo
+   `GosipSimulator` en GitHub y pasa la URL; entonces `git remote add origin <url>` y
+   `git push -u origin main`. `gh` no está instalado en esta máquina, así que el repo no se puede
+   crear desde el agente, y el push lo hace Fernando.
 2. **Resuelto el 2026-09-17: `.qwen/settings.json` está commiteado y acotado.** Fernando commiteó en
    `9d8313a` los permisos que la sesión había ido acumulando, y el commit siguiente los acotó. El
    resultado, comparado con lo que traía la plantilla:
