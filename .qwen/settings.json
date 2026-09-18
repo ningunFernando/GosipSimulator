@@ -1,12 +1,22 @@
 {
   "permissions": {
     "allow": [
-      "Bash(do *)",
-      "Bash(curl *)",
-      "Bash(python3 *)",
-      "Bash(done)",
-      "Bash(command *)"
+      "Read(//Users/ningunfernando/Projects/Unity/DecoupledTemplate/**)",
+      "Read(//Applications/Unity/Hub/Editor/**)",
+      "Read(//Users/ningunfernando/.qwen/**)",
+      "Read(//Users/ningunfernando/.local/**)",
+      "Read(//Users/ningunfernando/.claude/skills/isuzu-unity-cli/**)",
+      "Bash(* *)",
+      "Bash(esac)",
+      "Bash(ls *)"
     ]
+  },
+  "mcpServers": {
+    "unity": {
+      "command": "/Users/ningunfernando/.local/bin/isuzu-unity-cli",
+      "args": ["mcp-stdio", "--project", "GosipSimulator"],
+      "timeout": 60000
+    }
   },
   "$version": 4
 }
