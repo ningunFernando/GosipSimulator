@@ -1,0 +1,17 @@
+{
+    "name": "GosipSimulator.Gossip",
+    "rootNamespace": "GosipSimulator.Gossip",
+    "references": [
+        "GUID:93d59735cb5934ae9958fd79878778e6",
+        "GUID:ac3349bb5077a4a2dacebe5411bc5ca3"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

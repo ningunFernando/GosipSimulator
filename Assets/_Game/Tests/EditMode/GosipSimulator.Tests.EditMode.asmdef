@@ -9,7 +9,8 @@
         "GosipSimulator.Debug",
         "GosipSimulator.Pickups",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "GosipSimulator.Gossip"
     ],
     "includePlatforms": [
         "Editor"
