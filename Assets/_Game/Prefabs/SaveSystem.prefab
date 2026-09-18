@@ -43,5 +43,5 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 75ea5478eb14d48b68a135ffe389851f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: DecoupledTemplate.Save::DecoupledTemplate.Save.SaveSystem
+  m_EditorClassIdentifier: GosipSimulator.Save::GosipSimulator.Save.SaveSystem
   _fileName: save.json

@@ -1,8 +1,8 @@
 using NUnit.Framework;
-using DecoupledTemplate.Core.State;
-using DecoupledTemplate.Debug;
+using GosipSimulator.Core.State;
+using GosipSimulator.Debug;
 
-namespace DecoupledTemplate.Tests
+namespace GosipSimulator.Tests
 {
     /// <summary>
     /// The HUD text without a panel. Whether the events actually reach the HUD in a running game

@@ -1,6 +1,6 @@
-using DecoupledTemplate.Core.State;
+using GosipSimulator.Core.State;
 
-namespace DecoupledTemplate.Debug
+namespace GosipSimulator.Debug
 {
     /// <summary>
     /// What the HUD displays, kept out of the MonoBehaviour so EditMode can test it without a

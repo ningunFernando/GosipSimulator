@@ -43,7 +43,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dc84f96bd0e8d497b81b373b34927416, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: DecoupledTemplate.Core::DecoupledTemplate.Core.Pool.ObjectPoolManager
+  m_EditorClassIdentifier: GosipSimulator.Core::GosipSimulator.Core.Pool.ObjectPoolManager
   _poolConfigs:
   - poolId: Pickup
     prefab: {fileID: 5775368193916437862, guid: ba91ee18aa3e84cf79a3f533c847259b, type: 3}

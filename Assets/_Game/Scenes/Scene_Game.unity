@@ -336,7 +336,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4c95b4a6d870d46aaacb1371d02f293b, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: DecoupledTemplate.Pickups::DecoupledTemplate.Pickups.PickupSpawner
+  m_EditorClassIdentifier: GosipSimulator.Pickups::GosipSimulator.Pickups.PickupSpawner
   _poolId: Pickup
   _spawnPoints:
   - {fileID: 954658633}
@@ -392,7 +392,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9e8c5ed3a8aa541f7a71daba6310165f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: DecoupledTemplate.Debug::DecoupledTemplate.Debug.DebugHud
+  m_EditorClassIdentifier: GosipSimulator.Debug::GosipSimulator.Debug.DebugHud
 --- !u!114 &935466901
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -632,7 +632,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 04e49e97c06104fe28112299fbf7568c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: DecoupledTemplate.Player::DecoupledTemplate.Player.PlayerMover
+  m_EditorClassIdentifier: GosipSimulator.Player::GosipSimulator.Player.PlayerMover
   _input: {fileID: 1300990133}
   _maxSpeed: 5
   _smoothTime: 0.1
@@ -674,7 +674,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cb9462780788f406cb64b735b7c6657f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: DecoupledTemplate.Player::DecoupledTemplate.Player.PlayerInputReader
+  m_EditorClassIdentifier: GosipSimulator.Player::GosipSimulator.Player.PlayerInputReader
   _moveAction: {fileID: -1680190386980627800, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   _pauseAction: {fileID: -8338598726356848359, guid: 052faaac586de48259a63d0c4782560b, type: 3}
 --- !u!23 &1300990134

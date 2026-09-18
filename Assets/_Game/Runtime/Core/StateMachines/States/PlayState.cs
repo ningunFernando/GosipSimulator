@@ -1,4 +1,4 @@
-namespace DecoupledTemplate.Core.State
+namespace GosipSimulator.Core.State
 {
     public class PlayState : IGameState
     {

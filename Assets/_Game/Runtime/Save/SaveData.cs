@@ -1,6 +1,6 @@
 using System;
 
-namespace DecoupledTemplate.Save
+namespace GosipSimulator.Save
 {
     /// <summary>
     /// Everything that survives between sessions. Versioned from day one (R14): renaming or

@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace DecoupledTemplate.Core
+namespace GosipSimulator.Core
 {
     /// <summary>
     /// The only place in the project allowed to call UnityEngine.Debug (R13).
@@ -9,9 +9,9 @@ namespace DecoupledTemplate.Core
     /// </summary>
     public static class Log
     {
-        public const string VERBOSE = "DECOUPLEDTEMPLATE_VERBOSE";
+        public const string VERBOSE = "GOSIPSIMULATOR_VERBOSE";
 
-        // Fully qualified on purpose. Once DecoupledTemplate.Debug exists as a namespace,
+        // Fully qualified on purpose. Once GosipSimulator.Debug exists as a namespace,
         // a bare Debug in this scope resolves to the namespace instead of the type (CS0118).
         // Stacked Conditional attributes are an OR: traces compile in the Editor and in development
         // builds (DEBUG), and a release build strips every call and its string unless VERBOSE is

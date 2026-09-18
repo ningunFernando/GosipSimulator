@@ -124,5 +124,5 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 09ea169e90b3a4d90886643ce7e7f41a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: DecoupledTemplate.Pickups::DecoupledTemplate.Pickups.Pickup
+  m_EditorClassIdentifier: GosipSimulator.Pickups::GosipSimulator.Pickups.Pickup
   _value: 1

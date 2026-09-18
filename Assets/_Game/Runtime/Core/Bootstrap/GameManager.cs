@@ -1,9 +1,9 @@
 using System;
 using UnityEngine;
-using DecoupledTemplate.Core.Pool;
-using DecoupledTemplate.Core.State;
+using GosipSimulator.Core.Pool;
+using GosipSimulator.Core.State;
 
-namespace DecoupledTemplate.Core
+namespace GosipSimulator.Core
 {
     /// <summary>
     /// Owns the state machine and holds the manager references the Bootstrapper injects.

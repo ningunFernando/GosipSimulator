@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace DecoupledTemplate.Core.Pool
+namespace GosipSimulator.Core.Pool
 {
     /// <summary>
     /// Pools GameObjects by string id. Get is the only place that activates anything, which is

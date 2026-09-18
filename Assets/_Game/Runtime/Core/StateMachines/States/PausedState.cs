@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace DecoupledTemplate.Core.State
+namespace GosipSimulator.Core.State
 {
     /// <summary>
     /// Freezes scaled time while current: FixedUpdate, physics and anything timed with deltaTime

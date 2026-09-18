@@ -1,4 +1,4 @@
-namespace DecoupledTemplate.Core.Pool
+namespace GosipSimulator.Core.Pool
 {
     /// <summary>
     /// Implemented by pooled objects that carry per-use state. A reused object comes back with

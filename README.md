@@ -1,4 +1,4 @@
-# DecoupledTemplate
+# GosipSimulator
 
 Plantilla de arquitectura para juegos en Unity 6: un `EventBus` tipado, un bootstrap que arranca los
 sistemas en un orden verificable, pausa, guardado versionado, un jugador 3D con `Rigidbody`, un ciclo
@@ -37,11 +37,11 @@ muestra si terminó el bootstrap, el estado del juego y la moneda; solo existe e
 development builds.
 
 La partida se guarda al pausar, si hay cambios, y al salir o mandar la aplicación a segundo plano. En
-macOS el archivo queda en `~/Library/Application Support/DefaultCompany/DecoupledTemplate/save.json`.
+macOS el archivo queda en `~/Library/Application Support/DefaultCompany/GosipSimulator/save.json`.
 
 La consola muestra la secuencia de arranque paso a paso (`Log.Trace`) en el Editor y en los development
 builds. En un build de release esas trazas no existen: se eliminan al compilar, salvo que se añada
-`DECOUPLEDTEMPLATE_VERBOSE` a *Player Settings > Scripting Define Symbols* para diagnosticarlo.
+`GOSIPSIMULATOR_VERBOSE` a *Player Settings > Scripting Define Symbols* para diagnosticarlo.
 
 *Run In Background* está activado, así que el juego sigue corriendo aunque Unity o el build pierdan el
 foco.
@@ -52,15 +52,15 @@ foco.
 Assets/
 ├── _Game/
 │   ├── Runtime/
-│   │   ├── Core/       DecoupledTemplate.Core     bootstrap, EventBus, estados y pausa, pool, Log
-│   │   ├── Data/       DecoupledTemplate.Data     ScriptableObjects de configuración
-│   │   ├── Pickups/    DecoupledTemplate.Pickups  recolectables sacados del pool
-│   │   ├── Player/     DecoupledTemplate.Player   input y movimiento
-│   │   └── Save/       DecoupledTemplate.Save     guardado en tres capas
-│   ├── Debug/          DecoupledTemplate.Debug    HUD, solo Editor y development builds
+│   │   ├── Core/       GosipSimulator.Core     bootstrap, EventBus, estados y pausa, pool, Log
+│   │   ├── Data/       GosipSimulator.Data     ScriptableObjects de configuración
+│   │   ├── Pickups/    GosipSimulator.Pickups  recolectables sacados del pool
+│   │   ├── Player/     GosipSimulator.Player   input y movimiento
+│   │   └── Save/       GosipSimulator.Save     guardado en tres capas
+│   ├── Debug/          GosipSimulator.Debug    HUD, solo Editor y development builds
 │   ├── Tests/
-│   │   ├── EditMode/   DecoupledTemplate.Tests.EditMode
-│   │   └── PlayMode/   DecoupledTemplate.Tests.PlayMode
+│   │   ├── EditMode/   GosipSimulator.Tests.EditMode
+│   │   └── PlayMode/   GosipSimulator.Tests.PlayMode
 │   ├── Prefabs/        GameManager, ObjectPoolManager, SaveSystem, Pickup
 │   └── Scenes/         Scene_Bootstrap (índice 0), Scene_Game (índice 1)
 ├── Docs/               ARCHITECTURE.md y la guía
@@ -112,9 +112,9 @@ Los tres placeholders de la guía tienen el mismo valor en esta plantilla:
 
 | Placeholder | Significado | Valor aquí |
 |---|---|---|
-| `{Project}` | Nombre del proyecto en PascalCase | `DecoupledTemplate` |
-| `{ROOT_NS}` | Namespace raíz | `DecoupledTemplate` |
-| `{ASM}` | Prefijo de las assemblies | `DecoupledTemplate` |
+| `{Project}` | Nombre del proyecto en PascalCase | `GosipSimulator` |
+| `{ROOT_NS}` | Namespace raíz | `GosipSimulator` |
+| `{ASM}` | Prefijo de las assemblies | `GosipSimulator` |
 
 Unity enlaza cada componente de escenas y prefabs por el GUID del script y por `assembly::tipo`.
 Cambiar a la vez el nombre de la assembly y el namespace puede romper ese enlace (sección 8 de la
@@ -126,7 +126,7 @@ guía), así que el orden importa:
 2. Cambiar los namespaces **módulo a módulo** (`Data`, `Core`, `Save`, `Player`, `Pickups`, `Debug` y
    los tests), guardando escenas y prefabs y haciendo un commit después de cada módulo.
 3. Cambiar el resto de apariciones del nombre:
-   - `Log.VERBOSE` (`"DECOUPLEDTEMPLATE_VERBOSE"`), y el mismo símbolo en *Player Settings* si se añadió.
+   - `Log.VERBOSE` (`"GOSIPSIMULATOR_VERBOSE"`), y el mismo símbolo en *Player Settings* si se añadió.
    - El `menuName` del `[CreateAssetMenu]` de `GameConfigSO`.
    - *Product Name* y *Company Name* en *Player Settings*. Cambian `Application.persistentDataPath`,
      así que un save que ya exista deja de encontrarse.

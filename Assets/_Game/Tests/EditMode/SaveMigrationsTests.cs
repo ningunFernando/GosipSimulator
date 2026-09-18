@@ -5,9 +5,9 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
-using DecoupledTemplate.Save;
+using GosipSimulator.Save;
 
-namespace DecoupledTemplate.Tests
+namespace GosipSimulator.Tests
 {
     /// <summary>
     /// Covers M7: the reference project versioned the save from day one and then, on any version

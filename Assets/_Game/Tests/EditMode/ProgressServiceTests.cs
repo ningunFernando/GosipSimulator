@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using DecoupledTemplate.Core;
-using DecoupledTemplate.Save;
+using GosipSimulator.Core;
+using GosipSimulator.Save;
 
-namespace DecoupledTemplate.Tests
+namespace GosipSimulator.Tests
 {
     /// <summary>
     /// Covers M6: in the reference project AddCurrency(-50) was legal and decremented totalEarned,

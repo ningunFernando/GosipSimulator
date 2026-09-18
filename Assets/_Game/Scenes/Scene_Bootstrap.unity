@@ -147,7 +147,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ba48b4a9099d64daead4df432ba9ea3c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: DecoupledTemplate.Core::DecoupledTemplate.Core.Bootstrapper
+  m_EditorClassIdentifier: GosipSimulator.Core::GosipSimulator.Core.Bootstrapper
   _gameManagerPrefab: {fileID: 8051352002030213058, guid: 1c4385fc8e11945a4bb3a5c45bffe86d, type: 3}
   _poolManagerPrefab: {fileID: 7798064693214946108, guid: 80873981f10d6479081ae1e0caa94cfc, type: 3}
   _gameConfig: {fileID: 11400000, guid: 0226c66bb597349f1aece4c18cb8ab9d, type: 2}

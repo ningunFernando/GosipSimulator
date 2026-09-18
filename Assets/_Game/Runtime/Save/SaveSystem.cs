@@ -1,10 +1,10 @@
 using System;
 using System.IO;
 using UnityEngine;
-using DecoupledTemplate.Core;
-using DecoupledTemplate.Core.State;
+using GosipSimulator.Core;
+using GosipSimulator.Core.State;
 
-namespace DecoupledTemplate.Save
+namespace GosipSimulator.Save
 {
     /// <summary>
     /// The Unity adapter: owns the lifecycle, resolves persistentDataPath and reacts to pause and

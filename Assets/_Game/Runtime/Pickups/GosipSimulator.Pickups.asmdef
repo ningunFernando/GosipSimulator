@@ -1,9 +1,9 @@
 {
-    "name": "DecoupledTemplate.Pickups",
-    "rootNamespace": "DecoupledTemplate.Pickups",
+    "name": "GosipSimulator.Pickups",
+    "rootNamespace": "GosipSimulator.Pickups",
     "references": [
-        "DecoupledTemplate.Core",
-        "DecoupledTemplate.Data"
+        "GosipSimulator.Core",
+        "GosipSimulator.Data"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

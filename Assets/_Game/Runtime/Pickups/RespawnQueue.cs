@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace DecoupledTemplate.Pickups
+namespace GosipSimulator.Pickups
 {
     /// <summary>
     /// Which spawn points are waiting to refill, and for how long. Plain C#, so the timing rules run

@@ -1,7 +1,7 @@
 using System;
-using DecoupledTemplate.Core;
+using GosipSimulator.Core;
 
-namespace DecoupledTemplate.Save
+namespace GosipSimulator.Save
 {
     /// <summary>
     /// The domain layer: mutates progress and enforces its invariants. Plain C#, no UnityEngine

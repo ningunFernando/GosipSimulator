@@ -13,7 +13,7 @@ PlayerSettings:
   useOnDemandResources: 0
   accelerometerFrequency: 60
   companyName: DefaultCompany
-  productName: DecoupledTemplate
+  productName: GosipSimulator
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b: 0.1254902, a: 1}
@@ -859,14 +859,14 @@ PlayerSettings:
   editorAssembliesCompatibilityLevel: 1
   m_RenderingPath: 1
   m_MobileRenderingPath: 1
-  metroPackageName: DecoupledTemplate
+  metroPackageName: GosipSimulator
   metroPackageVersion: 
   metroCertificatePath: 
   metroCertificatePassword: 
   metroCertificateSubject: 
   metroCertificateIssuer: 
   metroCertificateNotAfter: 0000000000000000
-  metroApplicationDescription: DecoupledTemplate
+  metroApplicationDescription: GosipSimulator
   wsaImages: {}
   metroTileShortName: 
   metroTileShowName: 0
@@ -940,7 +940,7 @@ PlayerSettings:
   cloudProjectId: c0b41a74-f507-4bb7-9109-b978166d7388
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: DecoupledTemplate
+  projectName: GosipSimulator
   organizationId: unity_19f71f06e0f92a504005
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0

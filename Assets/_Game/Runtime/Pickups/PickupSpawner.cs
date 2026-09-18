@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
-using DecoupledTemplate.Core;
-using DecoupledTemplate.Core.Pool;
+using GosipSimulator.Core;
+using GosipSimulator.Core.Pool;
 
-namespace DecoupledTemplate.Pickups
+namespace GosipSimulator.Pickups
 {
     /// <summary>
     /// Keeps one pickup on each spawn point, taking them from the pool and giving them back. The pool

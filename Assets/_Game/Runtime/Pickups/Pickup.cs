@@ -1,8 +1,8 @@
 using UnityEngine;
-using DecoupledTemplate.Core;
-using DecoupledTemplate.Core.Pool;
+using GosipSimulator.Core;
+using GosipSimulator.Core.Pool;
 
-namespace DecoupledTemplate.Pickups
+namespace GosipSimulator.Pickups
 {
     /// <summary>
     /// A pooled collectible. It only knows its value and the spawner that placed it: the spawner is

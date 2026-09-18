@@ -4,10 +4,10 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
-using DecoupledTemplate.Core;
-using DecoupledTemplate.Core.State;
+using GosipSimulator.Core;
+using GosipSimulator.Core.State;
 
-namespace DecoupledTemplate.Tests
+namespace GosipSimulator.Tests
 {
     /// <summary>
     /// Covers C2 and A2 at the level where they actually bit: GameManager derives its enum from

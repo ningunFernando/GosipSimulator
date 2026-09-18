@@ -1,4 +1,4 @@
-# QWEN.md — DecoupledTemplate
+# QWEN.md — GosipSimulator
 
 Plantilla reutilizable de arquitectura Unity para futuros juegos. Se construye a partir de
 `Assets/Docs/GUIA_PLANTILLA_ARQUITECTURA.md`, que es la fuente autoritativa de las 14 reglas no
@@ -16,18 +16,18 @@ al mínimo imprescindible. Si algún día se añade cámara, R11 sigue vigente (
 suavizado, nunca Cinemachine y script en cascada).
 
 **Materializado en el Paso 1 (decisión de Fernando, 2026-09-08): la plantilla tiene 7 assemblies, no
-las 8 de la guía.** No existen `Assets/_Game/Runtime/CameraRig/` ni `DecoupledTemplate.Camera.asmdef`.
+las 8 de la guía.** No existen `Assets/_Game/Runtime/CameraRig/` ni `GosipSimulator.Camera.asmdef`.
 Toda verificación que en la guía diga `→ 8` (el Paso 1 y el *Definition of Done*) se lee `→ 7` aquí.
-**Actualización del 2026-09-14:** con `DecoupledTemplate.Pickups` (ver "Más allá de la guía") vuelven a
+**Actualización del 2026-09-14:** con `GosipSimulator.Pickups` (ver "Más allá de la guía") vuelven a
 ser 8, así que la cuenta coincide otra vez con la guía, pero no las assemblies: hay `Pickups`, no `Camera`.
 Si se añade cámara, entra como hoja nueva del grafo (referencia a `Core`+`Data`, y solo `Debug` y
 `Tests` la referencian) y hay que actualizar estas cuentas.
 
 ## Placeholders fijados (sección 2 de la guía)
 
-`{Project}` = `{ROOT_NS}` = `{ASM}` = **`DecoupledTemplate`**, coherente con el nombre del repo. Las
-8 assemblies son `DecoupledTemplate.{Core,Data,Player,Save,Pickups,Debug,Tests.EditMode,Tests.PlayMode}` y el
-`rootNamespace` de cada una es `DecoupledTemplate.<Módulo>` (`DecoupledTemplate.Tests` en las dos de
+`{Project}` = `{ROOT_NS}` = `{ASM}` = **`GosipSimulator`**, coherente con el nombre del repo. Las
+8 assemblies son `GosipSimulator.{Core,Data,Player,Save,Pickups,Debug,Tests.EditMode,Tests.PlayMode}` y el
+`rootNamespace` de cada una es `GosipSimulator.<Módulo>` (`GosipSimulator.Tests` en las dos de
 tests). Decisión del 2026-09-08 tomada sabiendo que renombrar obliga a regenerar los proyectos y a
 tocar todas las referencias: no cambiar a la ligera. La guía pide anotarlos en el `README.md`, que
 todavía no existe (Paso 8); hasta entonces viven aquí.
@@ -171,7 +171,7 @@ Dependencies`, o abrir cada `.asmdef` y mirar *References*). La sintaxis con `||
 El símbolo que usa, en cambio, sí es problemático: ver pendiente 4.
 
 **Paso 2 completado el 2026-09-08** — commit `ac95464`, 13 `.cs` (858 líneas) en
-`DecoupledTemplate.Core`. Unity los compiló a `Library/ScriptAssemblies/DecoupledTemplate.Core.dll`
+`GosipSimulator.Core`. Unity los compiló a `Library/ScriptAssemblies/GosipSimulator.Core.dll`
 con **cero errores y cero warnings**, comprobado sobre el trozo nuevo de `Logs/Editor.log` y no de
 memoria.
 Cero `Debug.Log` fuera de `Log.cs` (R13) · namespace en los 13 (R2) · cero `Find` (R6) · dos
@@ -185,13 +185,13 @@ Dos defectos de la guía, corregidos al escribir el código:
 - **`DEVELOPMENT_BUILD` está deprecado como directiva de compilación en Unity 6** y genera el warning
   `UAC0009` en cada compilado. `Log.Info` lleva `[Conditional("DEBUG")]`, el símbolo variant-aware
   que el propio aviso recomienda y que cubre la misma intención (Editor + development build).
-  Verificado contra `Library/Bee/artifacts/*.dag/DecoupledTemplate.Core.rsp`: `DEBUG` sí está
+  Verificado contra `Library/Bee/artifacts/*.dag/GosipSimulator.Core.rsp`: `DEBUG` sí está
   definido en el Editor, `DEVELOPMENT_BUILD` no.
 
-**Paso 3 completado el 2026-09-08** — `GameConfigSO.cs` en `DecoupledTemplate.Data` y su cableado en
+**Paso 3 completado el 2026-09-08** — `GameConfigSO.cs` en `GosipSimulator.Data` y su cableado en
 el `Bootstrapper`, que pasa de un `const GAME_SCENE_NAME` a leer `_gameConfig.GameSceneName`. Con eso
 la arista `Core → Data` deja de estar muerta: ya hay un tipo de `Core` usando uno de `Data`. Unity
-compila `DecoupledTemplate.Data.dll` y `DecoupledTemplate.Core.dll` con cero errores y cero warnings.
+compila `GosipSimulator.Data.dll` y `GosipSimulator.Core.dll` con cero errores y cero warnings.
 El asset `GameConfig_Default.asset` lo crea Fernando en el Editor, que es justo lo que ejercita el
 `[CreateAssetMenu]`: si está mal escrito, no se descubre hasta ese momento.
 
@@ -218,12 +218,12 @@ nada y lanza excepción, en vez de fallar al final de la secuencia con un `LoadS
 `Scene_Bootstrap` en Build Settings, meter el `DebugHud` en `Scene_Game`, y comprobar que entrar en
 Play desde `Scene_Game` directamente degrada con un error claro en vez de con una NRE.
 
-**Paso 4 completado el 2026-09-08** — las tres capas de `DecoupledTemplate.Save`
+**Paso 4 completado el 2026-09-08** — las tres capas de `GosipSimulator.Save`
 (`ISaveStorage` + `JsonSaveStorage` de infraestructura, `ProgressService` de dominio, `SaveSystem`
 de adapter) más `SaveData` versionado desde el día 1 y `SaveMigrations` con su cadena. La
 verificación de la guía sale limpia: `MonoBehaviour` solo aparece en `SaveSystem.cs`. Compila con
 cero errores y cero warnings. El save se escribe en
-`~/Library/Application Support/DefaultCompany/DecoupledTemplate/save.json`.
+`~/Library/Application Support/DefaultCompany/GosipSimulator/save.json`.
 
 El antiguo pendiente de cómo llegar al save sin romper R3 quedó resuelto con la salida (a): **`Core`
 declara `ISaveLifecycle` (`Load`/`Save`) y el `Bootstrapper` instancia el prefab de `SaveSystem` como
@@ -280,7 +280,7 @@ arriba: `Scene_Bootstrap` ya está en el índice 0 de Build Settings y `DebugHud
 
 **Paso 5 completado el 2026-09-14: `Player` en 3D con `Rigidbody`.** Decisión de Fernando: 3D en el
 plano XZ, `Rigidbody`, teclado y gamepad, sin control táctil por ahora. Tres clases en
-`DecoupledTemplate.Player`, que ahora referencia `Unity.InputSystem`:
+`GosipSimulator.Player`, que ahora referencia `Unity.InputSystem`:
 
 - `PlayerInputReader` (`Runtime/Player/Input/`): lee `Player/Move` de `InputSystem_Actions` por
   `InputActionReference`, suscrito a `performed` y a `canceled` (§6.8). Solo deja pasar input en
@@ -346,7 +346,7 @@ sección 1 de la guía prohíbe. Decisión de Fernando: resolverlo con un ciclo 
   `GameManager.TogglePause` alterna `Play` y `Paused`, y en cualquier otro estado la ignora con
   `Log.Info` (su primer call site) → `PausedState` pone `Time.timeScale` a 0 y al salir restaura el
   valor anterior. El input sigue llegando porque corre en tiempo sin escalar.
-- **Recolección.** Assembly nueva `DecoupledTemplate.Pickups`, que solo referencia `Core` y `Data`. Con
+- **Recolección.** Assembly nueva `GosipSimulator.Pickups`, que solo referencia `Core` y `Data`. Con
   ella la plantilla vuelve a tener 8 assemblies, aunque no las de la guía (hay `Pickups`, no `Camera`).
   `PickupSpawner` saca un `Pickup` del pool por cada punto al llegar `OnBootstrapComplete`; cuando el
   jugador (tag `Player`) lo toca, lo devuelve, programa su reaparición con `RespawnQueue` (C# puro, en
@@ -396,9 +396,9 @@ sección 1 de la guía prohíbe. Decisión de Fernando: resolverlo con un ciclo 
 4. **Resuelto el 2026-09-14: el constraint de `Debug` funciona en builds reales.** Dos builds de macOS
    (Mono) con `isuzu-unity-cli`, escritos fuera del repo, y cada uno ejecutado sin ventana
    (`-batchmode -nographics`) unos 15 s para leer el log del player:
-   - **Development** (44 s de build): incluye `DecoupledTemplate.Debug.dll`, y la secuencia sale
+   - **Development** (44 s de build): incluye `GosipSimulator.Debug.dll`, y la secuencia sale
      completa y sin warnings.
-   - **Release** (15 s): no incluye `DecoupledTemplate.Debug.dll`, que es lo buscado. El log confirma las
+   - **Release** (15 s): no incluye `GosipSimulator.Debug.dll`, que es lo buscado. El log confirma las
      dos consecuencias esperadas: `The referenced script on this Behaviour (Game Object 'DebugHud') is
      missing!` y `[EventBus] Published OnBootstrapComplete with no subscribers.`, porque en release
      nadie más escucha ese evento. `OnGameStateChanged` no avisa: lo escucha `PlayerInputReader`.
@@ -409,7 +409,7 @@ sección 1 de la guía prohíbe. Decisión de Fernando: resolverlo con un ciclo 
      apariciones en `Logs/Editor.log`), así que se deja como está.
    - Los 628 warnings del build eran prácticamente todos de shaders de `com.unity.ai.inference` (Sentis).
      **Resuelto el 2026-09-14:** con el paquete quitado, el build pasó a 3 warnings.
-   - `DECOUPLEDTEMPLATE_VERBOSE` estaba definido para Standalone, así que `Log.Trace` compilaba también en
+   - `GOSIPSIMULATOR_VERBOSE` estaba definido para Standalone, así que `Log.Trace` compilaba también en
      release. **Resuelto el 2026-09-14:** `Log.Trace` lleva `[Conditional("DEBUG")]` y
      `[Conditional(VERBOSE)]` apilados (se leen como OR) y el símbolo se quitó de *Player Settings*.
      Comprobado con builds reales: el development build escribe las 19 trazas del arranque y el de
@@ -457,7 +457,7 @@ sección 1 de la guía prohíbe. Decisión de Fernando: resolverlo con un ciclo 
   despistado.
 - **Control táctil sin decidir.** Si el juego acaba siendo para móvil en vertical (Fernando prueba en
   1080x1920), ojo: el `OnScreenStick` del Input System funciona sobre UGUI, no sobre UI Toolkit.
-- **`namespace DecoupledTemplate.Debug` sombrea `UnityEngine.Debug`.** Dentro de ese namespace,
+- **`namespace GosipSimulator.Debug` sombrea `UnityEngine.Debug`.** Dentro de ese namespace,
   `Debug.Log(...)` resuelve al namespace y da `CS0118`. R13 (todo logging por `Log.cs`) lo hace
   improbable. Ojo: los dos asmdef de tests ya referencian `Debug`, así que un `Debug.Log` sin calificar
-  dentro de `DecoupledTemplate.Tests` también daría `CS0118`.
+  dentro de `GosipSimulator.Tests` también daría `CS0118`.

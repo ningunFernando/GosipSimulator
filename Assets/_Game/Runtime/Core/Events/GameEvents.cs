@@ -1,6 +1,6 @@
-using DecoupledTemplate.Core.State;
+using GosipSimulator.Core.State;
 
-namespace DecoupledTemplate.Core
+namespace GosipSimulator.Core
 {
     // ────────────────────────────────
     // BOOTSTRAP EVENTS

@@ -1,7 +1,9 @@
 {
-    "name": "DecoupledTemplate.Data",
-    "rootNamespace": "DecoupledTemplate.Data",
-    "references": [],
+    "name": "GosipSimulator.Core",
+    "rootNamespace": "GosipSimulator.Core",
+    "references": [
+        "GosipSimulator.Data"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

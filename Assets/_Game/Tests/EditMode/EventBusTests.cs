@@ -3,9 +3,9 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
-using DecoupledTemplate.Core;
+using GosipSimulator.Core;
 
-namespace DecoupledTemplate.Tests
+namespace GosipSimulator.Tests
 {
     /// <summary>
     /// Covers A1: in the reference project the bus had three Publish call sites and zero

@@ -43,4 +43,4 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2000e161deada44f88ba4b58852a275d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: DecoupledTemplate.Core::DecoupledTemplate.Core.GameManager
+  m_EditorClassIdentifier: GosipSimulator.Core::GosipSimulator.Core.GameManager

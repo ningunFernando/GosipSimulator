@@ -1,4 +1,4 @@
-# Arquitectura de DecoupledTemplate
+# Arquitectura de GosipSimulator
 
 Plantilla reutilizable de arquitectura para juegos en Unity 6. Su objetivo es un **EventBus tipado**
 más un **bootstrap desacoplado que arranca los sistemas en un orden verificable**, con reglas que
@@ -17,7 +17,7 @@ se aparta de la guía, lo dice.
 
 Ocho assemblies. La guía también dibuja ocho, pero no las mismas: aquí no hay `Camera` (fuera del
 alcance acordado) y sí hay `Pickups`, el módulo mínimo que da uso real al pool y al guardado. Todas
-usan el prefijo `DecoupledTemplate` y su namespace raíz coincide con el nombre de la assembly.
+usan el prefijo `GosipSimulator` y su namespace raíz coincide con el nombre de la assembly.
 
 | Assembly | Referencia | Contenido |
 |---|---|---|
@@ -155,7 +155,7 @@ flowchart LR
 
 - **`Log`**: el único sitio que llama a `UnityEngine.Debug` (R13). `Trace` e `Info` compilan con `DEBUG`
   (Editor y development builds) y desaparecen de un build de release, llamada y string incluidos. `Trace`
-  compila además si se define `DECOUPLEDTEMPLATE_VERBOSE`, para diagnosticar un release a propósito.
+  compila además si se define `GOSIPSIMULATOR_VERBOSE`, para diagnosticar un release a propósito.
   `Warn` y `Error` siempre compilan.
 - **`GameManager` y la state machine**: el estado actual se deriva de la máquina en cada lectura,
   nunca se guarda en un segundo campo (R7). Pedir un estado sin implementación (`GameOver`) registra

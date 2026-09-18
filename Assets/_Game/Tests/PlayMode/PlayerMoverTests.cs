@@ -7,13 +7,13 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
-using DecoupledTemplate.Core;
-using DecoupledTemplate.Core.Pool;
-using DecoupledTemplate.Core.State;
-using DecoupledTemplate.Player;
-using DecoupledTemplate.Save;
+using GosipSimulator.Core;
+using GosipSimulator.Core.Pool;
+using GosipSimulator.Core.State;
+using GosipSimulator.Player;
+using GosipSimulator.Save;
 
-namespace DecoupledTemplate.Tests
+namespace GosipSimulator.Tests
 {
     /// <summary>
     /// Input to Rigidbody through the real scenes: a virtual keyboard holds W, and the Player placed

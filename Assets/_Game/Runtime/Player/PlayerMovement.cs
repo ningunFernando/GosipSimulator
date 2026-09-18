@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace DecoupledTemplate.Player
+namespace GosipSimulator.Player
 {
     /// <summary>
     /// Horizontal movement math, free of MonoBehaviour and Rigidbody so EditMode can test it (R5).

@@ -7,16 +7,16 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
-using DecoupledTemplate.Core;
-using DecoupledTemplate.Core.Pool;
-using DecoupledTemplate.Core.State;
-using DecoupledTemplate.Debug;
-using DecoupledTemplate.Pickups;
-using DecoupledTemplate.Player;
-using DecoupledTemplate.Save;
+using GosipSimulator.Core;
+using GosipSimulator.Core.Pool;
+using GosipSimulator.Core.State;
+using GosipSimulator.Debug;
+using GosipSimulator.Pickups;
+using GosipSimulator.Player;
+using GosipSimulator.Save;
 using Object = UnityEngine.Object;
 
-namespace DecoupledTemplate.Tests
+namespace GosipSimulator.Tests
 {
     /// <summary>
     /// The loop that exercises pool, bus, save and HUD together at runtime: the spawner takes pickups
@@ -99,7 +99,7 @@ namespace DecoupledTemplate.Tests
         {
             yield return BootAndWaitForPlay();
 
-            _tempFolder = Path.Combine(Path.GetTempPath(), "DecoupledTemplateTests_" + Guid.NewGuid().ToString("N"));
+            _tempFolder = Path.Combine(Path.GetTempPath(), "GosipSimulatorTests_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_tempFolder);
             string savePath = Path.Combine(_tempFolder, "save.json");
 

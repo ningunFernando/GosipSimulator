@@ -2,9 +2,9 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
-using DecoupledTemplate.Player;
+using GosipSimulator.Player;
 
-namespace DecoupledTemplate.Tests
+namespace GosipSimulator.Tests
 {
     /// <summary>
     /// The reader's failure path. Reading real input is covered end to end in PlayerMoverTests and

@@ -6,13 +6,13 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
-using DecoupledTemplate.Core;
-using DecoupledTemplate.Core.Pool;
-using DecoupledTemplate.Core.State;
-using DecoupledTemplate.Debug;
-using DecoupledTemplate.Save;
+using GosipSimulator.Core;
+using GosipSimulator.Core.Pool;
+using GosipSimulator.Core.State;
+using GosipSimulator.Debug;
+using GosipSimulator.Save;
 
-namespace DecoupledTemplate.Tests
+namespace GosipSimulator.Tests
 {
     /// <summary>
     /// The one thing EditMode cannot prove: that the scene, the prefabs and the Inspector wiring

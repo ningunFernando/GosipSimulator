@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using DecoupledTemplate.Pickups;
+using GosipSimulator.Pickups;
 
-namespace DecoupledTemplate.Tests
+namespace GosipSimulator.Tests
 {
     /// <summary>
     /// Respawn timing without a scene. The zero deltaTime case is the paused game: PausedState sets

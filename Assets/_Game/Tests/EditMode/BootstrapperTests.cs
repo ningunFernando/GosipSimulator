@@ -1,8 +1,8 @@
 using System.Reflection;
 using NUnit.Framework;
-using DecoupledTemplate.Core;
+using GosipSimulator.Core;
 
-namespace DecoupledTemplate.Tests
+namespace GosipSimulator.Tests
 {
     /// <summary>
     /// The entry scene rule on its own. Whether Unity actually runs the guard, and what it logs, is

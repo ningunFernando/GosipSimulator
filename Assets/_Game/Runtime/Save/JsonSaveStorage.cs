@@ -1,9 +1,9 @@
 using System;
 using System.IO;
 using UnityEngine;
-using DecoupledTemplate.Core;
+using GosipSimulator.Core;
 
-namespace DecoupledTemplate.Save
+namespace GosipSimulator.Save
 {
     /// <summary>
     /// JSON on disk. The path is injected, never resolved here, so this class stays free of

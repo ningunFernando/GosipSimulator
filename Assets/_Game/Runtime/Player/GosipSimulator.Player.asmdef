@@ -1,9 +1,9 @@
 {
-    "name": "DecoupledTemplate.Player",
-    "rootNamespace": "DecoupledTemplate.Player",
+    "name": "GosipSimulator.Player",
+    "rootNamespace": "GosipSimulator.Player",
     "references": [
-        "DecoupledTemplate.Core",
-        "DecoupledTemplate.Data",
+        "GosipSimulator.Core",
+        "GosipSimulator.Data",
         "Unity.InputSystem"
     ],
     "includePlatforms": [],

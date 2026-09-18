@@ -1,9 +1,9 @@
 using System;
 using UnityEngine;
 using UnityEngine.UIElements;
-using DecoupledTemplate.Core;
+using GosipSimulator.Core;
 
-namespace DecoupledTemplate.Debug
+namespace GosipSimulator.Debug
 {
     /// <summary>
     /// Debug overlay on UI Toolkit, driven by bus events only: no polling and no Find (C5, R10).

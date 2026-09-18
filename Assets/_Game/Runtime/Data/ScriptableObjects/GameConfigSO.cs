@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace DecoupledTemplate.Data
+namespace GosipSimulator.Data
 {
     /// <summary>
     /// Global game configuration. Data owns the values and everyone else reads them.
@@ -8,7 +8,7 @@ namespace DecoupledTemplate.Data
     /// types and enums declared here: a Core type such as GameState or PoolConfig cannot
     /// appear in this file without inverting the graph.
     /// </summary>
-    [CreateAssetMenu(fileName = "NewGameConfig", menuName = "DecoupledTemplate/Game Config")]
+    [CreateAssetMenu(fileName = "NewGameConfig", menuName = "GosipSimulator/Game Config")]
     public class GameConfigSO : ScriptableObject
     {
         // ────────────────────────────────

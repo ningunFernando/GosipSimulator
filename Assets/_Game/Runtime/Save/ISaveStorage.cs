@@ -1,4 +1,4 @@
-namespace DecoupledTemplate.Save
+namespace GosipSimulator.Save
 {
     /// <summary>
     /// Where the save lives. Zero game logic: read, write, keep a backup. A second implementation

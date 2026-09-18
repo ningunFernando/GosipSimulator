@@ -4,9 +4,9 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
-using DecoupledTemplate.Core.Pool;
+using GosipSimulator.Core.Pool;
 
-namespace DecoupledTemplate.Tests
+namespace GosipSimulator.Tests
 {
     /// <summary>
     /// Covers C1 and M3. C1 is the most expensive bug in the audit: the auto-expand branch handed

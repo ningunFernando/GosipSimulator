@@ -1,7 +1,7 @@
 using UnityEngine;
-using DecoupledTemplate.Core;
+using GosipSimulator.Core;
 
-namespace DecoupledTemplate.Player
+namespace GosipSimulator.Player
 {
     /// <summary>
     /// Adapter between PlayerInputReader, PlayerMovement and the Rigidbody. Moves in FixedUpdate,

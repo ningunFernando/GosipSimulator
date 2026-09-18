@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using DecoupledTemplate.Core;
+using GosipSimulator.Core;
 
-namespace DecoupledTemplate.Save
+namespace GosipSimulator.Save
 {
     /// <summary>
     /// The upgrade chain. Each entry turns one version into the next; Migrate walks them until

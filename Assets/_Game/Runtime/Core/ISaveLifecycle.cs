@@ -1,4 +1,4 @@
-namespace DecoupledTemplate.Core
+namespace GosipSimulator.Core
 {
     /// <summary>
     /// The only contract Core uses to drive the save system. It exists because R3 forbids Core

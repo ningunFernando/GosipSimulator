@@ -4,9 +4,9 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
-using DecoupledTemplate.Save;
+using GosipSimulator.Save;
 
-namespace DecoupledTemplate.Tests
+namespace GosipSimulator.Tests
 {
     /// <summary>
     /// Covers C6 and R14. Runs against a temporary folder because JsonSaveStorage takes its path
@@ -28,7 +28,7 @@ namespace DecoupledTemplate.Tests
         [SetUp]
         public void SetUp()
         {
-            _folder = Path.Combine(Path.GetTempPath(), "DecoupledTemplateTests_" + Guid.NewGuid().ToString("N"));
+            _folder = Path.Combine(Path.GetTempPath(), "GosipSimulatorTests_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_folder);
 
             _filePath = Path.Combine(_folder, "save.json");

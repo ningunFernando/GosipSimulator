@@ -1,13 +1,13 @@
 {
-    "name": "DecoupledTemplate.Tests.EditMode",
-    "rootNamespace": "DecoupledTemplate.Tests",
+    "name": "GosipSimulator.Tests.EditMode",
+    "rootNamespace": "GosipSimulator.Tests",
     "references": [
-        "DecoupledTemplate.Core",
-        "DecoupledTemplate.Data",
-        "DecoupledTemplate.Save",
-        "DecoupledTemplate.Player",
-        "DecoupledTemplate.Debug",
-        "DecoupledTemplate.Pickups",
+        "GosipSimulator.Core",
+        "GosipSimulator.Data",
+        "GosipSimulator.Save",
+        "GosipSimulator.Player",
+        "GosipSimulator.Debug",
+        "GosipSimulator.Pickups",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

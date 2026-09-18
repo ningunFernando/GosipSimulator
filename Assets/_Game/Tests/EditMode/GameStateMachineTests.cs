@@ -2,9 +2,9 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
-using DecoupledTemplate.Core.State;
+using GosipSimulator.Core.State;
 
-namespace DecoupledTemplate.Tests
+namespace GosipSimulator.Tests
 {
     /// <summary>
     /// Covers C2 and A2: the reference project kept the state enum and the state machine in two

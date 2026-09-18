@@ -1,9 +1,9 @@
 using System;
 using NUnit.Framework;
 using UnityEngine;
-using DecoupledTemplate.Player;
+using GosipSimulator.Player;
 
-namespace DecoupledTemplate.Tests
+namespace GosipSimulator.Tests
 {
     /// <summary>
     /// The movement math without a Rigidbody. The frame rate test is the one that matters: the

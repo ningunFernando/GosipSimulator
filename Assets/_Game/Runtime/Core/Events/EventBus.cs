@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace DecoupledTemplate.Core
+namespace GosipSimulator.Core
 {
     /// <summary>
     /// Typed event bus and the only channel between gameplay modules (R3, R4).

@@ -2,10 +2,10 @@ using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using DecoupledTemplate.Core.Pool;
-using DecoupledTemplate.Data;
+using GosipSimulator.Core.Pool;
+using GosipSimulator.Data;
 
-namespace DecoupledTemplate.Core
+namespace GosipSimulator.Core
 {
     /// <summary>
     /// Entry point of the game, alone in Scene_Bootstrap. Instantiates the managers, keeps the

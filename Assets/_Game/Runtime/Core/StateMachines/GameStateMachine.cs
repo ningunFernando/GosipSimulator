@@ -1,4 +1,4 @@
-namespace DecoupledTemplate.Core.State
+namespace GosipSimulator.Core.State
 {
     /// <summary>
     /// Owns the current IGameState and is the single source of truth for it (R7): GameManager

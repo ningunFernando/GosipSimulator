@@ -1,10 +1,10 @@
 {
-    "name": "DecoupledTemplate.Debug",
-    "rootNamespace": "DecoupledTemplate.Debug",
+    "name": "GosipSimulator.Debug",
+    "rootNamespace": "GosipSimulator.Debug",
     "references": [
-        "DecoupledTemplate.Core",
-        "DecoupledTemplate.Data",
-        "DecoupledTemplate.Player"
+        "GosipSimulator.Core",
+        "GosipSimulator.Data",
+        "GosipSimulator.Player"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

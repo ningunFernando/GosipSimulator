@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace DecoupledTemplate.Core.Pool
+namespace GosipSimulator.Core.Pool
 {
     /// <summary>
     /// Inspector-facing description of one pool. A serializable class, not a struct, so

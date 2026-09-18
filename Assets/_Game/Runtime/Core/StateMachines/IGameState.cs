@@ -1,4 +1,4 @@
-namespace DecoupledTemplate.Core.State
+namespace GosipSimulator.Core.State
 {
     /// <summary>
     /// Coarse game flow. Bootstrap and GameOver deliberately have no state class: Bootstrap is

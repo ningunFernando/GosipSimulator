@@ -1,9 +1,9 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using DecoupledTemplate.Core;
-using DecoupledTemplate.Core.State;
+using GosipSimulator.Core;
+using GosipSimulator.Core.State;
 
-namespace DecoupledTemplate.Player
+namespace GosipSimulator.Player
 {
     /// <summary>
     /// The one owner of player input (R11). Reads serialized InputActionReferences instead of
