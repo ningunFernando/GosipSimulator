@@ -1,17 +1,24 @@
 # Arquitectura de GosipSimulator
 
-Plantilla reutilizable de arquitectura para juegos en Unity 6. Su objetivo es un **EventBus tipado**
-más un **bootstrap desacoplado que arranca los sistemas en un orden verificable**, con reglas que
-impiden repetir los fallos auditados en el proyecto de referencia (HamsterBall).
+Demo de Unity 6 sobre consecuencias sociales: las acciones del jugador las pueden presenciar los NPCs,
+y lo que vieron cambia cómo le tratan después. El repo es un fork de
+[`DecoupledTemplate`](https://github.com/ningunFernando/DecoupledTemplate), y de esa plantilla hereda
+lo que este documento describe en su mayor parte: un **EventBus tipado** más un **bootstrap
+desacoplado que arranca los sistemas en un orden verificable**, con reglas que impiden repetir los
+fallos auditados en el proyecto de referencia de la plantilla (HamsterBall).
 
 - La especificación completa (14 reglas, 8 pasos, *Definition of Done*) está en
-  [`GUIA_PLANTILLA_ARQUITECTURA.md`](GUIA_PLANTILLA_ARQUITECTURA.md).
-- Las decisiones tomadas sobre este repo, el estado de cada paso y los pendientes están en
+  [`GUIA_PLANTILLA_ARQUITECTURA.md`](GUIA_PLANTILLA_ARQUITECTURA.md). Es la guía de la plantilla, se
+  conserva tal cual y sigue siendo la fuente autoritativa de las reglas.
+- Las decisiones tomadas sobre este repo, su estado y los pendientes están en
   [`QWEN.md`](../../QWEN.md), en la raíz del repo.
-- Cómo abrir la plantilla, correr los tests y adaptarla a un juego nuevo: [`README.md`](../../README.md).
+- Cómo abrir el proyecto, correr los tests y cómo se hizo el renombrado del fork:
+  [`README.md`](../../README.md).
 
-Este documento describe **cómo está hecha la plantilla hoy**, no cómo debería hacerse: donde el repo
-se aparta de la guía, lo dice.
+Este documento describe **cómo está hecho el proyecto hoy**, no cómo debería hacerse: donde el repo se
+aparta de la guía, lo dice. Todo lo que cuenta aquí existe y se ejecuta. El sistema de chisme, que es
+la razón de ser del proyecto, **no está implementado**: su diseño va en la última sección y en el
+`README.md`, marcados como planeados.
 
 ## Assemblies
 
@@ -219,7 +226,7 @@ script. Es lo esperado: la assembly `Debug` no entra en ese build (comprobado co
 
 ## Tests
 
-Los tests forman parte de la plantilla: cubren los bugs reales de la auditoría y demuestran que los
+Los tests vienen de la plantilla: cubren los bugs reales de la auditoría y demuestran que los
 sistemas están conectados.
 
 - **EditMode** (lógica pura, milisegundos): `EventBus`, state machine, `GameManager` (pausa incluida),
@@ -252,3 +259,80 @@ El número de tests y su duración están en el `README.md`.
 | R12 | Cero stubs silenciosos; pendientes como `TODO(Fase-N)` |
 | R13 | Ningún `Debug.Log` fuera de `Log.cs` |
 | R14 | El save se migra, nunca se borra |
+
+## El sistema de chisme (planeado)
+
+**Nada de esta sección existe en el código todavía.** Es el diseño acordado para la primera rebanada,
+y se documenta aquí porque cambia el grafo de assemblies y porque la restricción R3 obliga a una
+decisión concreta sobre cómo circula el estado.
+
+### Cuatro hojas nuevas
+
+Cuatro assemblies, todas con `Core` y `Data` como únicas referencias del proyecto, y sin referenciarse
+entre ellas. El grafo sigue siendo acíclico y `Debug` y los tests siguen siendo las únicas hojas que
+referencian todos los módulos.
+
+| Assembly | Referencia | Contenido previsto |
+|---|---|---|
+| `Gossip` | `Core`, `Data` | Grafo de opiniones y propagación de rumores, en C# puro, más su adapter |
+| `Npcs` | `Core`, `Data` | Identidad de los NPCs y percepción: quién presenció una acción |
+| `Actions` | `Core`, `Data`, `Unity.InputSystem` | Verbos del jugador. Valida y publica, no interpreta |
+| `Shop` | `Core`, `Data` | Condiciones del herrero: multiplicador de precio y negativa |
+
+Dos grafos distintos, y conviene no mezclarlos:
+
+- **Grafo social** (NPC contra NPC, con pesos de confianza). Estático, viene de la configuración en
+  `Data`. Determina por dónde viaja un rumor y con cuánta fuerza.
+- **Grafo de opiniones** (NPC hacia el jugador, con signo). Dinámico, es lo que se persiste.
+
+### El recorrido
+
+```mermaid
+flowchart LR
+    Input[PlayerInputReader] -->|Interact| Actions
+    Actions -->|OnActionCommitted| Npcs
+    Npcs -->|OnActionWitnessed por testigo| Gossip
+    Gossip -->|OnRelationshipChanged| Save
+    Gossip -->|OnRelationshipChanged| Shop
+    Gossip -->|OnRumorSpread| HUD[DebugHud]
+    Shop -->|OnShopTermsChanged| HUD
+    Shop -->|OnPurchaseApproved| Save
+    Save -->|OnProgressChanged| HUD
+```
+
+Ninguna flecha es una referencia entre assemblies: todas son publicaciones en el bus (R4). `Actions`
+no sabe quién miraba, `Npcs` no sabe qué opina nadie de nadie, `Gossip` no sabe que existe una tienda
+y `Shop` no sabe cómo se propagó el rumor.
+
+### La consecuencia de R3: el estado se empuja, no se tira
+
+`Shop` necesita saber qué opina el herrero del jugador, y no puede referenciar `Gossip`. Las salidas
+son dos y se eligió la segunda:
+
+1. Mover el almacén de relaciones a `Core` y dejar `Gossip` como motor de reglas. Rompe la idea de que
+   `Core` es andamiaje y no gameplay, y convierte un concepto del juego en una dependencia de todos.
+2. **Que cada consumidor cache lo suyo a partir de `OnRelationshipChanged`.** Es exactamente lo que ya
+   hacen `DebugHud` con `OnProgressChanged` y `SaveSystem` con `OnPickupCollected`, así que no añade un
+   patrón nuevo. R7 se respeta porque cada concepto tiene un dueño: la opinión es de `Gossip`, el
+   multiplicador de precio es de `Shop`.
+
+El precio es el orden de carga. Un consumidor que se suscriba tarde se pierde los cambios anteriores, y
+al cargar una partida todos los cambios ya ocurrieron. Se resuelve sin acoplar los módulos:
+
+- `Gossip` construye su grafo desde la configuración en `Awake`, no en un handler.
+- `SaveSystem`, que ya vive en `DontDestroyOnLoad` y ya escucha el bus, publica `OnRelationshipsRestored`
+  al llegar `OnBootstrapComplete`, con las opiniones que leyó del archivo.
+- `Gossip` las aplica encima de lo que construyó.
+
+Como `OnBootstrapComplete` se publica después de cargar `Scene_Game`, los objetos de la escena ya están
+suscritos en su `OnEnable` (R10), y ninguno de los dos módulos depende del orden en que el bus reparta
+los handlers.
+
+### Persistencia
+
+`SaveData` pasa a `CURRENT_VERSION = 2` con una lista de opiniones, y `SaveMigrations` gana la entrada
+`[1]`, que hoy está vacía y comentada a propósito. R14 sigue mandando: backup antes de migrar, y nunca
+borrar. La simetría con lo que ya existe es deliberada: igual que `SaveSystem` convierte
+`OnPickupCollected` en moneda sin que `Pickups` lo sepa, convertirá `OnRelationshipChanged` en una fila
+persistida sin que `Gossip` lo sepa, y `OnPurchaseApproved` en un `TrySpend`.
+
