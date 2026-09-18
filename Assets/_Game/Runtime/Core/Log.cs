@@ -13,6 +13,10 @@ namespace DecoupledTemplate.Core
 
         // Fully qualified on purpose. Once DecoupledTemplate.Debug exists as a namespace,
         // a bare Debug in this scope resolves to the namespace instead of the type (CS0118).
+        // Stacked Conditional attributes are an OR: traces compile in the Editor and in development
+        // builds (DEBUG), and a release build strips every call and its string unless VERBOSE is
+        // added to its Scripting Define Symbols on purpose.
+        [Conditional("DEBUG")]
         [Conditional(VERBOSE)]
         public static void Trace(string msg) => UnityEngine.Debug.Log(msg);
 

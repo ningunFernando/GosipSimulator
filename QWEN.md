@@ -73,9 +73,17 @@ una dependencia del juego: todo vive en `Editor/` y no llega a ningún build. La
 valiendo para paquetes de runtime. Subir de versión se hace cambiando el tag en el manifest (o con
 `isuzu-unity-cli update`), no a mano en `Library/`.
 
-Ya vienen instalados y la guía preferiría que no (`ai.navigation`, `visualscripting`, `timeline`,
-`collab-proxy`, más `ai.assistant` y `ai.inference` en pre-release). **Quedan como están**: quitarlos
-es una decisión pendiente, no un paso de la plantilla.
+Venían instalados y la guía preferiría que no (`ai.navigation`, `visualscripting`, `timeline`,
+`collab-proxy`, más `ai.assistant` y `ai.inference` en pre-release). **Decisión de Fernando
+(2026-09-14): quitados** `ai.inference` (y con él `dt.app-ui`, que solo traía ese paquete),
+`ai.navigation`, `collab-proxy`, `timeline` y `visualscripting`. Nada del proyecto los usaba, y casi
+todos los warnings del build eran shaders de `ai.inference`. También se quitaron sus restos: los defines
+`SENTIS_ANALYTICS_ENABLED` y `APP_UI_EDITOR_ONLY` y la entrada de `dt.app-ui` en `EditorBuildSettings`.
+`ai.assistant` ya no estaba en el manifest; solo queda
+`ProjectSettings/Packages/com.unity.ai.assistant/Settings.json`, que no se tocó. Se mantienen
+`ide.rider` e `ide.visualstudio` (integración con el IDE). Es la segunda excepción a "no tocar
+`Packages/manifest.json`", y va en el sentido de la guía. Con `timeline` fuera, Unity MCP deja de
+ofrecer sus tools de Timeline y Recorder.
 
 ## Estructura: desviaciones aceptadas respecto a la sección 4 de la guía
 
@@ -371,8 +379,8 @@ sección 1 de la guía prohíbe. Decisión de Fernando: resolverlo con un ciclo 
   ni un frame aunque figure como en marcha: una prueba manual lanzada desde la terminal se queda en `Menu`
   sin ningún error. Para verificar sin foco hay que avanzar frames con `play_mode_step`, que deja warnings
   internos de Unity (`JobTempAlloc ... older than 4 frames`) que no salen jugando normal. Los tests no se
-  ven afectados. Decisión abierta: activarlo si se quiere que el juego siga corriendo sin foco en
-  escritorio.
+  ven afectados. **Decidido el 2026-09-14: activado.** Comprobado sin foco y sin `play_mode_step`: el
+  arranque llega a `Play` en menos de un segundo.
 - `ProjectSettings/TimeManager.asset` cambió solo: Unity 6.6 reserializó `Fixed Timestep` como fracción
   (2822399/141120000 = 0.02). Es el mismo valor, del mismo tipo de cambio que ya se commiteó en `59713b4`.
 
@@ -399,12 +407,13 @@ sección 1 de la guía prohíbe. Decisión de Fernando: resolverlo con un ciclo 
      `DebugHud`, y el player carga el `save.json` escrito desde el Editor (moneda 1).
    - `DEVELOPMENT_BUILD` en `defineConstraints` no dispara `UAC0009` en ninguna compilación (cero
      apariciones en `Logs/Editor.log`), así que se deja como está.
-   - Los 628 warnings del build son prácticamente todos de shaders de `com.unity.ai.inference` (Sentis),
-     uno de los paquetes preinstalados que la guía no quiere. Nada de la plantilla, pero es un argumento
-     más para la decisión pendiente de quitarlo.
-   - Con `DECOUPLEDTEMPLATE_VERBOSE` definido para Standalone, `Log.Trace` también compila en release y
-     el log del player sale con toda la secuencia. Si no se quiere eso en release, hay que quitar el
-     símbolo de *Player Settings* antes de hacer el build.
+   - Los 628 warnings del build eran prácticamente todos de shaders de `com.unity.ai.inference` (Sentis).
+     **Resuelto el 2026-09-14:** con el paquete quitado, el build pasó a 3 warnings.
+   - `DECOUPLEDTEMPLATE_VERBOSE` estaba definido para Standalone, así que `Log.Trace` compilaba también en
+     release. **Resuelto el 2026-09-14:** `Log.Trace` lleva `[Conditional("DEBUG")]` y
+     `[Conditional(VERBOSE)]` apilados (se leen como OR) y el símbolo se quitó de *Player Settings*.
+     Comprobado con builds reales: el development build escribe las 19 trazas del arranque y el de
+     release ninguna. Para diagnosticar un release, añadir el símbolo a mano.
 5. **Resuelto el 2026-09-13: Play Mode desde `Scene_Game` da un error claro.** Antes degradaba en
    silencio (consola vacía, HUD en `pending`/`unknown`). Ahora `Bootstrapper.CheckEntryScene`, con
    `[RuntimeInitializeOnLoadMethod(AfterSceneLoad)]`, registra un `Log.Error` si la primera escena
@@ -430,7 +439,8 @@ sección 1 de la guía prohíbe. Decisión de Fernando: resolverlo con un ciclo 
    `verify --test --test-mode play` ejecuta 0 tests hasta la siguiente recarga de dominio (recarga: 6
    tests; Play manual: 0; otra recarga: 6). No se probó con el botón de Play ni desde la ventana del
    Test Runner. Solución de uso, anotada en el README: forzar `EditorUtility.RequestScriptReload()`
-   antes. Decisión abierta: mantener las opciones (entrar en Play es mucho más rápido) o desactivarlas.
+   antes. **Decidido el 2026-09-14: se mantienen**, porque entrar en Play es mucho más rápido; el
+   aviso de las corridas con 0 tests queda documentado en el README.
    Mientras sigan activadas, los estáticos sobreviven entre sesiones de Play: hoy lo aguantan `EventBus`
    (lo limpia el `Bootstrapper`) y `GameManager.Instance` (se anula en `OnDestroy`), y cualquier estático
    nuevo tiene que resetearse igual.

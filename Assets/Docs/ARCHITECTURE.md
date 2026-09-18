@@ -153,8 +153,10 @@ flowchart LR
 
 ### Core
 
-- **`Log`**: el único sitio que llama a `UnityEngine.Debug` (R13). `Trace` depende del símbolo
-  `DECOUPLEDTEMPLATE_VERBOSE`, `Info` de `DEBUG`; `Warn` y `Error` siempre compilan.
+- **`Log`**: el único sitio que llama a `UnityEngine.Debug` (R13). `Trace` e `Info` compilan con `DEBUG`
+  (Editor y development builds) y desaparecen de un build de release, llamada y string incluidos. `Trace`
+  compila además si se define `DECOUPLEDTEMPLATE_VERBOSE`, para diagnosticar un release a propósito.
+  `Warn` y `Error` siempre compilan.
 - **`GameManager` y la state machine**: el estado actual se deriva de la máquina en cada lectura,
   nunca se guarda en un segundo campo (R7). Pedir un estado sin implementación (`GameOver`) registra
   un error y no muta nada.

@@ -15,7 +15,8 @@ de la auditoría de un proyecto anterior (HamsterBall), y cada regla evita un fa
 
 - Unity `6000.6.0f1`.
 - Paquetes que usa la plantilla, ya declarados en `Packages/manifest.json`: URP 17.6.0, Input System
-  1.20.0 y Test Framework 1.8.0.
+  1.20.0 y Test Framework 1.8.0. El manifest no trae paquetes que la plantilla no use: Timeline, Visual
+  Scripting, AI Navigation, AI Inference y Version Control se quitaron.
 - Opcional: `jp.shiranui-isuzu.unity-mcp` 4.3.3, también en el manifest, para manejar el Editor desde
   agentes o desde la terminal. Es solo de Editor y no llega a ningún build.
 
@@ -38,8 +39,12 @@ development builds.
 La partida se guarda al pausar, si hay cambios, y al salir o mandar la aplicación a segundo plano. En
 macOS el archivo queda en `~/Library/Application Support/DefaultCompany/DecoupledTemplate/save.json`.
 
-Con el símbolo `DECOUPLEDTEMPLATE_VERBOSE` definido (lo está en *Player Settings* para Standalone), la
-consola muestra la secuencia de arranque paso a paso.
+La consola muestra la secuencia de arranque paso a paso (`Log.Trace`) en el Editor y en los development
+builds. En un build de release esas trazas no existen: se eliminan al compilar, salvo que se añada
+`DECOUPLEDTEMPLATE_VERBOSE` a *Player Settings > Scripting Define Symbols* para diagnosticarlo.
+
+*Run In Background* está activado, así que el juego sigue corriendo aunque Unity o el build pierdan el
+foco.
 
 ## Estructura
 
@@ -121,8 +126,7 @@ guía), así que el orden importa:
 2. Cambiar los namespaces **módulo a módulo** (`Data`, `Core`, `Save`, `Player`, `Pickups`, `Debug` y
    los tests), guardando escenas y prefabs y haciendo un commit después de cada módulo.
 3. Cambiar el resto de apariciones del nombre:
-   - `Log.VERBOSE` (`"DECOUPLEDTEMPLATE_VERBOSE"`) y el mismo símbolo en *Player Settings > Scripting
-     Define Symbols*.
+   - `Log.VERBOSE` (`"DECOUPLEDTEMPLATE_VERBOSE"`), y el mismo símbolo en *Player Settings* si se añadió.
    - El `menuName` del `[CreateAssetMenu]` de `GameConfigSO`.
    - *Product Name* y *Company Name* en *Player Settings*. Cambian `Application.persistentDataPath`,
      así que un save que ya exista deja de encontrarse.
