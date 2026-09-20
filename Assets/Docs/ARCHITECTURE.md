@@ -23,7 +23,7 @@ sistema de chisme va en la última sección y en el `README.md`.
 
 ## Assemblies
 
-Diez assemblies. La guía dibuja ocho y la plantilla traía ocho, pero no las mismas: aquí no hay
+Once assemblies. La guía dibuja ocho y la plantilla traía ocho, pero no las mismas: aquí no hay
 `Camera` (fuera del alcance acordado) y sí hay `Pickups`, el módulo mínimo que da uso real al pool y al
 guardado, más `Gossip` y `Npcs`, los dos primeros propios de este juego. Todas usan el prefijo `GosipSimulator` y su
 namespace raíz coincide con el nombre de la assembly.
@@ -37,17 +37,18 @@ namespace raíz coincide con el nombre de la assembly.
 | `Pickups` | `Core`, `Data` | Objetos recolectables que salen del pool y vuelven a él |
 | `Gossip` | `Core`, `Data` | Opiniones entre NPCs y propagación de rumores, dominio y adapter. Vive en `Runtime/Gosip/`, con otra grafía que el nombre de la assembly |
 | `Npcs` | `Core`, `Data` | Identidad de los NPCs y percepción: quién presenció qué |
+| `Actions` | `Core`, `Data`, `Unity.InputSystem` | Los verbos del jugador. Valida y publica, no interpreta |
 | `Debug` | `Core`, `Data`, `Player` | HUD de desarrollo. Solo compila con `UNITY_EDITOR \|\| DEVELOPMENT_BUILD` |
-| `Tests.EditMode` | `Core`, `Data`, `Save`, `Player`, `Debug`, `Pickups`, `Gossip`, `Npcs` | Tests de lógica pura, solo Editor |
-| `Tests.PlayMode` | `Core`, `Data`, `Save`, `Player`, `Debug`, `Pickups`, `Gossip`, `Npcs`, `Unity.InputSystem` | Tests de extremo a extremo con escenas reales |
+| `Tests.EditMode` | todos los módulos | Tests de lógica pura, solo Editor |
+| `Tests.PlayMode` | todos los módulos, más `Unity.InputSystem` | Tests de extremo a extremo con escenas reales |
 
 ```
    Debug              Tests.EditMode / Tests.PlayMode
      │                 (referencian todos los módulos)
      ↓
-   Player     Save     Pickups     Gossip     Npcs
-     │          │          │          │          │
-     └──────────┴──────────┼──────────┴──────────┘
+   Player   Save   Pickups   Gossip   Npcs   Actions
+     │        │        │        │       │        │
+     └────────┴────────┼────────┴───────┴────────┘
                           ↓
                         Core
                           ↓
@@ -55,7 +56,8 @@ namespace raíz coincide con el nombre de la assembly.
 ```
 
 Reglas del grafo (R3): `Data` no referencia nada del proyecto; `Core` solo a `Data`; los módulos de
-gameplay (`Player`, `Save`, `Pickups`, `Gossip`, `Npcs`) referencian `Core` y `Data` y **nunca entre sí**;
+gameplay (`Player`, `Save`, `Pickups`, `Gossip`, `Npcs`, `Actions`) referencian `Core` y `Data` y
+**nunca entre sí**;
 `Debug` y los tests son hojas. Cuando un módulo necesita a otro, la respuesta es un evento: `Pickups` no
 sabe que `Save` existe, solo publica `OnPickupCollected`.
 
@@ -144,27 +146,26 @@ suscriptores, lo que hace visible un bus decorativo (A1). Las suscripciones se h
 | `OnPauseRequested` | `PlayerInputReader`, con Esc o Start | `GameManager` (alterna `Play` y `Paused`) |
 | `OnPickupCollected` | `PickupSpawner`, cuando el jugador toca un pickup | `SaveSystem` (lo convierte en moneda) |
 | `OnProgressChanged` | `ProgressService`, tras mutar el progreso | `SaveSystem` (marca el save como sucio), `DebugHud` |
-| `OnActionCommitted` | **nadie todavía**; lo publicará `Actions` cuando el jugador haga algo | `NpcRegistry`, que resuelve quién estaba mirando |
+| `OnActionCommitted` | `InteractionReader`, cuando el jugador actúa sobre algo al alcance | `NpcRegistry`, que resuelve quién estaba mirando |
 | `OnActionWitnessed` | `NpcRegistry`, un evento por testigo y del más cercano al más lejano | `GossipManager` |
 | `OnRelationshipChanged` | `GossipService`, solo si la opinión cambió de verdad | `SaveSystem`, que lo convierte en una fila persistida. Faltan `Shopkeeper` y `DebugHud` |
 | `OnRumorSpread` | `GossipService`, por cada salto que de verdad mueve a alguien | **nadie en runtime**; lo escuchará `DebugHud` |
 | `OnRelationshipsRestored` | `SaveSystem`, al llegar `OnBootstrapComplete` | `GossipManager` |
 
-De los cinco, tres están conectados por los dos extremos. `OnActionWitnessed` lo publica `NpcRegistry`
-y lo consume `GossipManager` desde el hito 8. `OnRelationshipChanged` lo publica `GossipService` y lo
-consume `SaveSystem`, así que una opinión que se mueve acaba en el archivo. `OnRelationshipsRestored`
-va en el otro sentido y se publica en cada arranque.
+Desde el hito 9, cuatro de los cinco están conectados por los dos extremos y la cadena va sola:
+`InteractionReader` publica `OnActionCommitted`, `NpcRegistry` lo consume y publica `OnActionWitnessed`,
+`GossipManager` lo consume y `GossipService` publica `OnRelationshipChanged`, y `SaveSystem` lo consume
+y escribe. `OnRelationshipsRestored` va en el otro sentido, en cada arranque.
 
-Quedan dos sueltos, cada uno por una punta distinta:
+**El que queda suelto es `OnRumorSpread`: tiene productor y no tiene consumidor.** Hasta el hito 9 eso
+era gratis, porque nada publicaba acciones y el evento nunca salía. Ahora que el jugador puede robar de
+verdad, `EventBus` avisa de que se publica sin suscriptores cada vez que un rumor da un salto.
 
-- **`OnActionCommitted` tiene consumidor y no productor.** Es la situación en la que estuvo
-  `OnActionWitnessed` entre el hito 6 y el 8, y no cuesta nada: suscribirse sin que nadie publique no
-  genera ningún aviso. El productor llega con `Actions`.
-- **`OnRumorSpread` tiene productor y no consumidor**, y ese sí dispararía el aviso de `EventBus`. No
-  salta porque nada publica acciones todavía, y los tests suscriben un sumidero antes de publicar nada
-  para no ensuciar la consola con un aviso que no significa nada. En cuanto exista `Actions` y el
-  jugador robe de verdad, ese aviso saldrá y será información buena: dirá que el HUD de opinión
-  (hito 11) todavía no aprovecha lo que el chisme ya está contando.
+Ese aviso no se silencia, y esa es la regla (A1): un bus decorativo tiene que ser distinguible de uno
+roto. Dice algo cierto y accionable, que el HUD de opinión del hito 11 todavía no aprovecha lo que el
+chisme ya está contando, y desaparece solo en cuanto ese HUD lo escuche. Los tests suscriben un
+sumidero antes de publicar nada, así que la consola de una corrida sigue limpia y su cuenta de warnings
+sigue valiendo como alarma.
 
 ### El ciclo de recolección
 
@@ -311,6 +312,33 @@ El id de cada NPC sale de su `NpcDefinitionSO`, el mismo asset que construye el 
 campo de texto. Escribir `blacksmith` a mano en dos sitios está a una errata de un aldeano del que nadie
 puede cotillear.
 
+### Actions
+
+El tercer módulo propio del juego, y el que enciende todos los demás. Valida y publica: no interpreta.
+
+| Tipo | Clase | Responsabilidad |
+|---|---|---|
+| Dominio | `InteractionResolver` | Qué hay al alcance. Posiciones como datos, distancia al cuadrado, el más cercano gana y un empate se queda con el primero de la lista |
+| Adapter | `Interactable` | Una cosa del mundo y su verbo: un `ActionDefinitionSO` y a quién se lo haces. Sin comportamiento propio |
+| Adapter | `InteractionReader` | Lee `Interact` por `InputActionReference` (M9), exige estado `Play`, elige objetivo y publica `OnActionCommitted` |
+
+Tres decisiones que no se ven en las firmas:
+
+- **El plan decía `ActionCatalog` y aquí hay un `InteractionResolver`.** Un catálogo no tenía trabajo:
+  cada `Interactable` lleva su propio `ActionDefinitionSO`, así que no hay id que resolver contra una
+  tabla, y un tipo que solo reenvía es el stub silencioso que R12 prohíbe. Lo que faltaba era la regla
+  de alcance. Un catálogo tendrá sentido cuando las acciones necesiten validarse contra algo: permisos,
+  cooldowns o verbos que se desbloquean.
+- **La posición del evento es la del objeto, no la del jugador.** Percepción pregunta quién pudo ver la
+  acción, y la acción ocurre en el cofre, no a los pies del ladrón.
+- **El estado se comprueba en el handler, no desactivando la acción.** El input sigue llegando durante la
+  pausa porque corre en tiempo sin escalar, así que el `if (!_isPlaying)` es lo único que impide robar
+  con el juego parado.
+
+La acción `Interact` ya existía en `InputSystem_Actions`, heredada de la plantilla de Unity y ligada a
+E y al botón norte del mando. **Lo que hubo que quitarle fue su interacción `Hold`**, que venía de
+fábrica y retrasaba `performed` unos 0.4 segundos. El motivo y cómo revertirlo están en `QWEN.md`.
+
 ### Debug
 
 `DebugHud` usa **UI Toolkit** (la guía pide Canvas con TextMeshPro; la decisión está en `QWEN.md`).
@@ -329,7 +357,7 @@ script. Es lo esperado: la assembly `Debug` no entra en ese build (comprobado co
 Los tests vienen de la plantilla: cubren los bugs reales de la auditoría y demuestran que los
 sistemas están conectados. Los del chisme son nuevos y cubren solo lógica pura.
 
-- **EditMode** (lógica pura, milisegundos): `PerceptionResolver` (20 casos), `EventBus`, state machine, `GameManager` (pausa incluida),
+- **EditMode** (lógica pura, milisegundos): `PerceptionResolver` (20 casos), `InteractionResolver` (15), `EventBus`, state machine, `GameManager` (pausa incluida),
   pool, save (almacenamiento, migraciones, progreso), regla de la escena de entrada, texto del HUD,
   movimiento del jugador (incluido que se sienta igual a 30 y a 120 fps) y `RespawnQueue`. Del chisme:
   `RelationshipGraph` (29 casos), `RumorPropagator` (22) y `GossipService` (24).
@@ -379,19 +407,19 @@ las otras tres assemblies y el recorrido completo, que es lo que le da trabajo a
 porque cambia el grafo de assemblies y porque la restricción R3 obliga a una decisión concreta sobre
 cómo circula el estado.
 
-### Dos hojas nuevas
+### La hoja que falta
 
-`Npcs` ya existe y está descrita más arriba. Quedan dos assemblies, las dos con `Core` y `Data` como
-únicas referencias del proyecto, y sin referenciarse entre ellas ni con `Gossip` o `Npcs`. El grafo
-sigue siendo acíclico y `Debug` y los tests siguen siendo las únicas hojas que referencian todos los
+`Npcs` y `Actions` ya existen y están descritas más arriba. Queda una assembly, con `Core` y `Data`
+como únicas referencias del proyecto y sin referenciar a ninguna otra de gameplay. El grafo sigue
+siendo acíclico y `Debug` y los tests siguen siendo las únicas hojas que referencian todos los
 módulos.
 
 | Assembly | Referencia | Contenido previsto |
 |---|---|---|
-| `Actions` | `Core`, `Data`, `Unity.InputSystem` | Verbos del jugador. Valida y publica, no interpreta |
 | `Shop` | `Core`, `Data` | Condiciones del herrero: multiplicador de precio y negativa |
 
-De `Gossip` y de `Npcs` no falta nada: los hitos 6 y 8 los dejaron corriendo en `Scene_Game`.
+De `Gossip`, `Npcs` y `Actions` no falta nada: los hitos 6, 8 y 9 los dejaron corriendo en
+`Scene_Game`.
 
 Dos grafos distintos, y conviene no mezclarlos:
 

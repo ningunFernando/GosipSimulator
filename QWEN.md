@@ -41,11 +41,11 @@ escrito. Lo que falta es quien publique ese primer evento, que es el hito 9. El 
 
 ## Placeholders
 
-`{Project}` = `{ROOT_NS}` = `{ASM}` = **`GosipSimulator`**. Hoy hay **10** assemblies, no las 8 de la
-plantilla: `GosipSimulator.{Core,Data,Player,Save,Pickups,Gossip,Npcs,Debug,Tests.EditMode,Tests.PlayMode}`.
+`{Project}` = `{ROOT_NS}` = `{ASM}` = **`GosipSimulator`**. Hoy hay **11** assemblies, no las 8 de la
+plantilla: `GosipSimulator.{Core,Data,Player,Save,Pickups,Gossip,Npcs,Actions,Debug,Tests.EditMode,Tests.PlayMode}`.
 El `rootNamespace` de cada una coincide con su nombre, salvo las dos de tests, que comparten
-`GosipSimulator.Tests`. Las dos de gameplay que faltan (`Actions`, `Shop`) entran como hojas iguales que
-`Gossip` y `Npcs`, referenciando solo `Core` y `Data`, y habrá que actualizar esta cuenta.
+`GosipSimulator.Tests`. La única de gameplay que falta (`Shop`) entra como hoja igual que las otras,
+referenciando solo `Core` y `Data`, y habrá que actualizar esta cuenta.
 
 Ojo con un detalle: la carpeta se llama `Runtime/Gosip/` y la assembly `GosipSimulator.Gossip`. Dos
 grafías de la misma palabra en la misma ruta. No rompe nada, pero conviene elegir una.
@@ -55,13 +55,14 @@ grafías de la misma palabra en la misma ruta. No rompe nada, pero conviene eleg
 **Hecho y verificado.** El fork y el renombrado completo (`778fff6`), la documentación reescrita para
 este proyecto (`bc03fb4`), la capa de dominio del chisme (`99acc35` y `fc30717`), el hito 6 (`59d5399`):
 el adapter `GossipManager` y su cableado en `Scene_Game`, el hito 7 (`e25ebe2`): `SaveData` v2 y la
-persistencia de las opiniones, y el hito 8: la assembly `Npcs` y los cuatro aldeanos en la escena.
-Medido el 2026-09-20 con el Editor abierto y el CLI de Unity MCP:
+persistencia de las opiniones, el hito 8 (`fb92d06`): la assembly `Npcs` y los cuatro aldeanos en la
+escena, y el hito 9: la assembly `Actions` y los dos objetos con los que el jugador actúa. Medido el
+2026-09-20 con el Editor abierto y el CLI de Unity MCP:
 
 | Suite | Tests | Errores en consola | Warnings |
 |---|---|---|---|
-| EditMode | 187 en verde | 6 | 7 |
-| PlayMode | 28 en verde | 7 | 2 |
+| EditMode | 202 en verde | 6 | 7 |
+| PlayMode | 35 en verde | 7 | 2 |
 
 Los 6 y los 7 errores son los esperados: cada test de un caso de error declara su mensaje con
 `LogAssert.Expect`. Los dos que subieron el número de PlayMode de 5 a 7 son
@@ -76,10 +77,11 @@ entero, cada arranque pide cuatro pickups, el pool tiene cuatro, y con más arra
 expandirse. Se comprobó leyendo la consola, no adivinando, y `PickupFlowTests` sigue en verde. Antes de
 tratarlo como un fallo, mirar si el número cambia al añadir o quitar tests que arranquen el juego.
 
-De los 187 de EditMode, **70 son heredados de la plantilla y 117 son del juego**: 29 de
+De los 202 de EditMode, **70 son heredados de la plantilla y 132 son del juego**: 29 de
 `RelationshipGraph`, 22 de `RumorPropagator`, 24 de `GossipService`, 20 de `RelationshipStore`, 20 de
-`PerceptionResolver` y 2 nuevos en `SaveMigrationsTests`. De los 28 de PlayMode, **12 son heredados y 16
-nuevos**: 6 en `GossipFlowTests`, 4 en `RelationshipPersistenceTests` y 6 en `PerceptionFlowTests`.
+`PerceptionResolver`, 15 de `InteractionResolver` y 2 nuevos en `SaveMigrationsTests`. De los 35 de
+PlayMode, **12 son heredados y 23 nuevos**: 6 en `GossipFlowTests`, 4 en
+`RelationshipPersistenceTests`, 6 en `PerceptionFlowTests` y 7 en `InteractionFlowTests`.
 
 **Del chisme existe la capa de dominio y su adapter.** En `Runtime/Gosip/`, cinco tipos con la forma de
 cuatro capas que ya usan `Save` y `Pickups`: `RelationshipGraph` y `SocialGraph` son datos puros,
@@ -112,20 +114,25 @@ para que solo el hijo vea el centro del mapa.
 productor, que es la misma situación en la que estuvo `OnActionWitnessed` entre el hito 6 y el 8:
 suscribirse sin que nadie publique no genera ningún aviso, así que es gratis.
 
-**Lo que todavía no ocurre es que alguien publique `OnActionCommitted`.** Toda la cadena posterior
-existe y hay un test de PlayMode que la recorre entera, de la acción a las filas en disco. Lo que falta
-es el verbo del jugador, que es el hito 9.
+**El hito 9 le dio verbos al jugador.** La assembly `Actions` tiene `InteractionResolver` (dominio
+puro: qué hay al alcance, el más cercano gana, empate al primero), `Interactable` (una cosa del mundo
+y su `ActionDefinitionSO`) e `InteractionReader` (lee `Interact`, comprueba que el juego esté en `Play`
+y publica `OnActionCommitted`). En `Scene_Game` hay un `Strongbox` a un paso del punto de salida y un
+`Well` fuera de alcance, para que caminar signifique algo.
+
+**La cadena está cerrada de la tecla al disco**, y `InteractionFlowTests` la recorre entera. Lo que
+falta ya no es maquinaria sino consecuencia visible: el herrero no reacciona (hito 10) y el HUD no
+muestra opiniones (hito 11).
 
 **Lo que falta, en orden.** Cada hito es verificable por sí solo.
 
 | # | Hito | Qué desbloquea |
 |---|---|---|
-| 9 | Assembly `Actions`: `Interactable`, `ActionCatalog`, `InteractionReader`, y la acción `Interact` en `InputSystem_Actions` | Que el jugador pueda robar |
 | 10 | Assembly `Shop`: `PricingPolicy`, `Shopkeeper`, y los cinco eventos que faltan | Que el herrero cobre más o se niegue |
 | 11 | `DebugHudModel` y `DebugHud` mostrando la opinión | Verlo funcionar sin depurador |
 
-Los hitos 6, 7 y 8 están hechos. Con ellos la cadena entera funciona salvo su primer eslabón: falta que
-el jugador tenga un verbo (hito 9), que el herrero reaccione (10) y que se vea sin depurador (11).
+Los hitos 6 a 9 están hechos y la cadena funciona entera. Falta que el herrero reaccione (10) y que
+todo esto se vea sin depurador (11).
 
 ## Decisiones tomadas
 
@@ -150,6 +157,21 @@ cada `m_EditorClassIdentifier` del proyecto resolviendo a un tipo real, y las do
 **`companyName` se queda en `DefaultCompany`.** Cambiarlo mueve `Application.persistentDataPath`. En el
 fork no importaba porque no trae ninguna partida guardada, y se dejó para no mezclar dos cambios; si se
 cambia más adelante, el save que exista deja de encontrarse.
+
+**Se quitó la interacción `Hold` de la acción `Interact`.** Venía así en la plantilla de Unity, donde
+`Interact` trae `"interactions": "Hold"` de fábrica: `performed` no se dispara hasta unos 0.4 segundos
+de tecla pulsada. Eso costó una tanda de tests rojos en el hito 9 con un síntoma engañoso, porque los
+tests que comprobaban que **no** pasa nada pasaban en verde igualmente. No era una decisión de nadie,
+era un default heredado, y el resto del input del juego son pulsaciones sueltas (Esc, WASD). Si alguna
+vez se quiere robar manteniendo la tecla, es volver a poner `Hold` en esa acción y alargar el `Tap` de
+`InteractionFlowTests` por encima del umbral.
+
+**Donde el plan decía `ActionCatalog` hay un `InteractionResolver`.** Un catálogo no tenía trabajo que
+hacer: cada `Interactable` ya lleva su propio `ActionDefinitionSO`, así que no hay ningún id que
+resolver contra una tabla, y un tipo que solo reenvía es justo el stub silencioso que R12 prohíbe. Lo
+que sí hacía falta era la regla de alcance, con una respuesta definida para el empate. Si más adelante
+las acciones necesitan validarse contra una lista (permisos, cooldowns, verbos desbloqueables), ese es
+el momento de que exista un catálogo, y no antes.
 
 **`Pickups` se queda.** Es hoy el único consumidor del pool y lo único que hace que `SaveSystem`
 escriba el archivo. El README de la plantilla avisa de no borrarlo sin reemplazo, porque sin consumidor
@@ -377,12 +399,16 @@ placeholders. Si diverge de la de HamsterBall, da igual, ninguna se va a volver 
 3. **No se pudo comprobar si la plantilla tenía cambios sin commitear** en el momento del fork, por el
    guard del shell. `git -C ../Unity/DecoupledTemplate status` desde fuera de esta sesión lo resuelve.
    Si había algo, este fork no lo tiene.
-4. **Construir el resto del chisme: hitos 9 a 11.** Los hitos 6, 7 y 8 se cerraron el 2026-09-20:
-   `Gossip` tiene sus cinco tipos, `Npcs` sus tres, `Save` va por v2 con `RelationshipRow` y
-   `RelationshipStore`, y hay 117 tests de EditMode más 16 de PlayMode cubriéndolo. Faltan las
-   assemblies `Actions` y `Shop`. El orden está en la tabla de [Estado](#estado) y el diseño en
-   `ARCHITECTURE.md`. **El hito 9 es el siguiente y el que enciende todo lo demás**, porque es el
-   único que falta para que robar sea algo que pueda hacer el jugador y no solo un test.
+4. **Construir el resto del chisme: hitos 10 y 11.** Los hitos 6 a 9 se cerraron el 2026-09-20:
+   `Gossip` tiene sus cinco tipos, `Npcs` sus tres, `Actions` sus tres, `Save` va por v2 con
+   `RelationshipRow` y `RelationshipStore`, y hay 132 tests de EditMode más 23 de PlayMode
+   cubriéndolo. Falta la assembly `Shop` y el HUD de opinión. El diseño está en `ARCHITECTURE.md`.
+   **Cuando llegue el hito 10 hay que definir los cuatro eventos de la tienda**, que hasta ahora no
+   existen a propósito porque nadie los publicaría ni los escucharía (R12).
+
+   Nota para el 11: `OnRumorSpread` ya tiene productor y sigue sin consumidor, así que jugar de verdad
+   hace saltar el aviso de `EventBus` por publicar sin suscriptores. No se silencia; el HUD es quien
+   lo apaga al escucharlo.
 5. **Cabos sueltos de autoría en los assets.** Uno de ellos acaba de encarecerse:
    - `NewGossipConfig.asset` conserva el nombre por defecto del `CreateAssetMenu`, y desde el hito 6
      **ya está referenciado** por el `GossipManager` de `Scene_Game`. Renombrarlo sigue siendo barato,

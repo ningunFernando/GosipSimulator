@@ -17,16 +17,15 @@ adapter que la arranca**: el grafo de opiniones, el grafo social, la propagació
 que publica, los ScriptableObjects, los assets de la aldea y el `GossipManager` que lo monta todo en
 `Scene_Game`. Las dos suites pasan, 145 en EditMode y 18 en PlayMode.
 
-**La aldea ya ve, opina, cotillea y se acuerda. Lo único que falta es que el jugador pueda hacer algo.**
-Los hitos 6, 7 y 8 encadenaron el sistema entero: hay cuatro NPCs en `Scene_Game` con su alcance de
-vista, un `OnActionCommitted` en el bus hace que quien estuviera cerca lo presencie, el testigo se forma
-una opinión, el rumor viaja por el grafo social en tiempo de juego, y todo lo que se mueve acaba en
-`save.json` y vuelve al arrancar. Un test de PlayMode recorre ese camino entero, de una acción a filas en
-disco, cruzando cuatro assemblies que no se referencian entre sí.
+**El juego que promete el primer párrafo ya se puede jugar.** Los hitos 6 a 9 cerraron la cadena
+entera: pulsas E junto al cofre, te ve el hijo del herrero porque está a tres pasos, su opinión de ti
+cae, el rumor viaja hasta el padre y hasta el aldeano perdiendo fuerza en cada salto, y todo lo que se
+ha movido queda escrito en `save.json` y vuelve al arrancar. Un test de PlayMode recorre ese camino de
+una tecla a las filas en disco, cruzando cinco assemblies que no se referencian entre sí.
 
-Lo que no existe es el principio de la cadena: **nadie publica `OnActionCommitted` todavía**. Eso es el
-hito 9, y hasta entonces solo los tests pueden robar. La sección
-[El sistema de chisme](#el-sistema-de-chisme) separa lo que existe de lo que falta.
+Lo que falta es lo que hace visible todo eso: el herrero todavía no te cobra más (hito 10) y el HUD no
+muestra las opiniones (hito 11), así que de momento la consecuencia se lee en la consola y en el
+guardado. La sección [El sistema de chisme](#el-sistema-de-chisme) separa lo que existe de lo que falta.
 
 | Documento | Para qué sirve |
 |---|---|
@@ -52,6 +51,13 @@ hito 9, y hasta entonces solo los tests pueden robar. La sección
 |---|---|---|
 | Mover | WASD o flechas | Stick izquierdo |
 | Pausar y reanudar | Esc | Start |
+| Actuar sobre lo que tengas cerca | E | Botón norte |
+
+**Ya se puede robar.** Al arrancar tienes el cofre a un paso: pulsa E y te verá el hijo del herrero,
+que está lo bastante cerca. Unos segundos después el padre se entera por él, y luego el aldeano. Al
+pozo, a la izquierda, hay que acercarse: desde el punto de salida queda fuera de alcance, y ayudar ahí
+mueve las opiniones en el otro sentido. Nada de esto se ve todavía sin depurador, porque el HUD de
+opinión es el hito 11; lo que sí se ve es la traza en la consola y las filas en `save.json`.
 
 Las esferas del escenario son pickups: al tocarlas suman moneda y reaparecen en su sitio a los 2
 segundos de juego (el contador se detiene en pausa). Arriba a la izquierda, el HUD de desarrollo
@@ -111,15 +117,16 @@ Medido el 2026-09-20 en este repo, con el Editor abierto y el CLI de Unity MCP:
 
 | Suite | Tests | Errores esperados en consola | Warnings |
 |---|---|---|---|
-| EditMode | 187 en verde | 6 | 7 |
-| PlayMode | 28 en verde | 7 | 2 |
+| EditMode | 202 en verde | 6 | 7 |
+| PlayMode | 35 en verde | 7 | 2 |
 
-De los 187 de EditMode, **70 vienen de la plantilla y 117 son del juego**: 29 de `RelationshipGraph`,
-22 de `RumorPropagator`, 24 de `GossipService`, 20 de `RelationshipStore`, 20 de `PerceptionResolver` y
-2 más en `SaveMigrationsTests` desde que existe la migración real. De los 28 de PlayMode, **12 vienen
-de la plantilla y 16 son nuevos**: 6 en `GossipFlowTests`, 4 en `RelationshipPersistenceTests` y 6 en
-`PerceptionFlowTests`. Los dos últimos errores esperados de PlayMode salen de los dos tests que
-comprueban que una entrada mal formada se rechaza, uno en `GossipManager` y otro en `NpcRegistry`.
+De los 202 de EditMode, **70 vienen de la plantilla y 132 son del juego**: 29 de `RelationshipGraph`,
+22 de `RumorPropagator`, 24 de `GossipService`, 20 de `RelationshipStore`, 20 de `PerceptionResolver`,
+15 de `InteractionResolver` y 2 más en `SaveMigrationsTests` desde que existe la migración real. De los
+35 de PlayMode, **12 vienen de la plantilla y 23 son nuevos**: 6 en `GossipFlowTests`, 4 en
+`RelationshipPersistenceTests`, 6 en `PerceptionFlowTests` y 7 en `InteractionFlowTests`. Los dos
+últimos errores esperados de PlayMode salen de los dos tests que comprueban que una entrada mal
+formada se rechaza, uno en `GossipManager` y otro en `NpcRegistry`.
 
 Los errores son intencionados: cada test que prueba un caso de error declara el mensaje con
 `LogAssert.Expect` y falla si no aparece. `verify` los cuenta igualmente porque solo lee la consola, no
@@ -272,14 +279,14 @@ otro rompe el emparejamiento, así que `isuzu-unity-cli upgrade` implica cambiar
 
 ## El sistema de chisme
 
-Cuatro assemblies nuevas, todas hoja sobre `Core` y `Data`, y sin referenciarse entre ellas (R3). Dos
-existen; las otras dos no.
+Cuatro assemblies nuevas, todas hoja sobre `Core` y `Data`, y sin referenciarse entre ellas (R3). Tres
+existen; falta una.
 
 | Assembly | De qué es dueña | Estado |
 |---|---|---|
 | `GosipSimulator.Gossip` | Opiniones, grafo social y propagación de rumores | Completa: dominio y adapter |
 | `GosipSimulator.Npcs` | Identidad de los NPCs y percepción: quién presenció qué | Completa: dominio y adapter |
-| `GosipSimulator.Actions` | Los verbos del jugador. Valida y publica, no interpreta | No existe |
+| `GosipSimulator.Actions` | Los verbos del jugador. Valida y publica, no interpreta | Completa: dominio y adapter |
 | `GosipSimulator.Shop` | Las condiciones del herrero: multiplicador de precio y negativa | No existe |
 
 ### Lo que ya existe
@@ -307,6 +314,23 @@ aldeano en `(9, 1, -7)` y el anciano en `(-10, 1, -10)`. Solo el hijo alcanza a 
 que es justo lo que hace que el caso del herrero funcione: robas en medio, te ve el hijo, y el padre se
 entera por él.
 
+En `Runtime/Actions/`, los verbos:
+
+| Tipo | Capa | Qué hace |
+|---|---|---|
+| `InteractionResolver` | dominio puro | Qué tienes al alcance. El más cercano dentro del radio gana, y un empate se queda con el primero de la lista |
+| `Interactable` | adapter | Una cosa del mundo y su verbo: un `ActionDefinitionSO` y a quién se lo haces. Sin comportamiento |
+| `InteractionReader` | adapter | Lee `Interact`, comprueba que el juego esté en `Play`, elige el objetivo y publica `OnActionCommitted` |
+
+En `Scene_Game`: el `Strongbox` en `(1, 0.5, 0)` con `Robbery` contra el herrero, y el `Well` en
+`(-3, 0.5, 0)` con `Action_Help`. El jugador sale en `(0, 1, 0)` con alcance 2.5, así que el cofre entra
+y el pozo no: para ayudar hay que caminar.
+
+**Donde el plan decía `ActionCatalog` hay un `InteractionResolver`.** Un catálogo no tenía trabajo: cada
+`Interactable` ya lleva su propio `ActionDefinitionSO`, así que no hay ningún id que buscar en ninguna
+tabla, y un tipo que solo reenvía es el stub silencioso que R12 prohíbe. Lo que sí hacía falta era una
+regla de alcance con una respuesta definida cuando dos cosas están igual de cerca.
+
 En `Data`: `SocialTie`, `NpcDefinitionSO`, `GossipConfigSO` y `ActionDefinitionSO`, más siete assets. La
 aldea es una cadena conectada: `son → blacksmith@90 → villager@50 → elder@40`.
 
@@ -314,8 +338,7 @@ En `Core`, cinco eventos: `OnActionCommitted`, `OnActionWitnessed`, `OnRelations
 `OnRelationshipsRestored`. Los cuatro de la tienda no están, a propósito: nada los publicaría ni los
 escucharía todavía (R12).
 
-95 tests de EditMode cubren los dos dominios, y 12 de PlayMode los dos adapters dentro de una escena
-real.
+110 tests de EditMode cubren los tres dominios, y 23 de PlayMode los adapters dentro de una escena real.
 
 El `GossipManager` vive en el objeto `SocialGraph` de `Scene_Game`, con los siete assets asignados. Si
 algo de esa configuración falta o no cuadra, el componente registra el motivo concreto y se deshabilita
@@ -323,15 +346,13 @@ en vez de quedarse a medio construir (R9). Entre las comprobaciones hay una que 
 apunte a un id que ningún `NpcDefinitionSO` declara se rechaza, porque `SocialGraph` crearía el nodo
 igual y los rumores viajarían a un NPC fantasma sin que nada lo dijera.
 
-**Lo que todavía no ocurre es que alguien publique `OnActionCommitted`.** Toda la maquinaria de
-después existe y está probada de extremo a extremo, pero el jugador no tiene ningún verbo con el que
-empezarla: el hito 9 es el que le da uno. Hasta entonces, robar es algo que solo pueden hacer los tests.
-
-El recorrido que sí funciona hoy, y que `PerceptionFlowTests` comprueba entero en una escena real:
+El recorrido completo, que `InteractionFlowTests` comprueba de la tecla al disco en una escena real:
 
 ```
-OnActionCommitted en (0, 1, 0)
-  -> Npcs: el hijo está a 2.83, dentro de su alcance de 6; los demás no
+E junto al cofre
+  -> Actions: el cofre está a 1.12, dentro del alcance 2.5; el pozo a 3.04, no
+  -> OnActionCommitted { robbery, en (1, 0.5, 0) }
+  -> Npcs: el hijo está a 2.29 de ahí, dentro de su vista de 6; los demás no
   -> OnActionWitnessed { witness: son }
   -> Gossip: el hijo pasa a -10, y encola el rumor
   -> tras el retardo por salto: herrero -5, aldeano -1, el anciano nunca se entera
@@ -339,14 +360,18 @@ OnActionCommitted en (0, 1, 0)
   -> Save: tres filas en save.json al pausar
 ```
 
-Ninguna de esas flechas es una referencia entre assemblies. `Npcs` no sabe qué opina nadie, `Gossip` no
-sabe quién miraba, y `Save` no sabe qué es un rumor.
+Ninguna de esas flechas es una referencia entre assemblies. `Actions` no sabe que alguien mira, `Npcs`
+no sabe qué opina nadie, `Gossip` no sabe que hay un archivo, y `Save` no sabe qué es un rumor.
+
+**El único aviso que queda es información buena.** `OnRumorSpread` ya tiene productor y todavía no
+tiene consumidor, así que en cuanto robes de verdad `EventBus` avisará de que se publica sin
+suscriptores. No se silencia: es exactamente lo que dice que el HUD de opinión (hito 11) aún no
+aprovecha lo que el chisme ya está contando.
 
 ### Lo que falta
 
 | # | Hito |
 |---|---|
-| 9 | `Actions`: `Interactable`, `ActionCatalog`, `InteractionReader`, y la acción `Interact` en `InputSystem_Actions` |
 | 10 | `Shop`: `PricingPolicy`, `Shopkeeper`, y los cinco eventos que faltan |
 | 11 | El HUD mostrando la opinión |
 

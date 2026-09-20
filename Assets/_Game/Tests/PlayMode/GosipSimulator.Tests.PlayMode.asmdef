@@ -11,7 +11,8 @@
         "Unity.InputSystem",
         "UnityEngine.TestRunner",
         "GosipSimulator.Gossip",
-        "GosipSimulator.Npcs"
+        "GosipSimulator.Npcs",
+        "GosipSimulator.Actions"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
