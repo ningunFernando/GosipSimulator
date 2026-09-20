@@ -155,6 +155,28 @@ el Editor, con `AssetDatabase.MoveAsset` ida y vuelta.
 comprobar la cuenta de tests por MCP después de cada tanda de archivos nuevos, que es justo lo que el
 punto anterior pide.
 
+**En Safe Mode el servidor MCP no existe, aunque el Editor esté abierto.** Safe Mode no compila los
+scripts, así que el paquete `unity-mcp` nunca arranca su servidor ni escribe su descriptor. Síntoma:
+`isuzu-unity-cli projects` responde *No running Unity Editor found* con el Editor abierto en pantalla.
+No falta el Editor: hay errores de compilación. Comprobado el 2026-09-19 contra un proceso de Unity vivo
+desde hacía cuatro horas. La consecuencia práctica importa, porque un error de compilación deja al
+agente ciego justo cuando más falta hace el MCP: la salida de `projects` no distingue "Editor cerrado"
+de "Editor en Safe Mode", y afirmar lo primero sin más prueba es un diagnóstico falso.
+
+**`health` reporta el uptime del servidor MCP, no el del Editor.** Se reinicia con cada recarga de
+dominio, y `verify --test` recompila, así que correr los tests lo pone a cero. Se lee como un reinicio
+del Editor y no lo es. Para el uptime real: `ps -o pid,etime -p <pid>` con el pid que da `projects`.
+
+**Abrir un segundo Editor sobre un proyecto ya abierto termina al momento y sin avisar.** Sale con
+código 0 porque la instancia existente tiene el bloqueo del proyecto, y el CLI pasa a hablar con la que
+ya estaba corriendo. Se lee fácil como "mi Editor se cerró solo", cuando lo que salió fue el segundo y
+las verificaciones siguen valiendo porque corren en la instancia viva.
+
+**`asset_broken_references` solo mira la escena abierta.** Reporta `scope: "scene"` y
+`objectsScanned` con lo que haya cargado, así que con `Scene_Bootstrap` abierta escanea un objeto y no
+dice nada de `Scene_Game`. Para cubrir las dos hay que abrirlas, o fiarse de la suite de PlayMode, que
+las carga de verdad y comprueba que los managers sobreviven y que el HUD recibe los eventos.
+
 ## Conocimiento heredado que sigue valiendo
 
 Todo esto se descubrió construyendo la plantilla y está pagado. No repetirlo.
