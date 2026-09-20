@@ -940,7 +940,7 @@ PlayerSettings:
   cloudProjectId: c0b41a74-f507-4bb7-9109-b978166d7388
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: GosipSimulator
+  projectName: DecoupledTemplate
   organizationId: unity_19f71f06e0f92a504005
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
