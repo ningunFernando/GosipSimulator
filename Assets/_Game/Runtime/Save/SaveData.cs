@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace GosipSimulator.Save
 {
@@ -10,7 +11,7 @@ namespace GosipSimulator.Save
     [Serializable]
     public class SaveData
     {
-        public const int CURRENT_VERSION = 1;
+        public const int CURRENT_VERSION = 2;
 
         public int saveVersion = CURRENT_VERSION;
 
@@ -20,5 +21,13 @@ namespace GosipSimulator.Save
         /// Lifetime accumulator. Monotonic by contract: spending never touches it (M6).
         /// </summary>
         public int totalEarned;
+
+        /// <summary>
+        /// What the village thinks of whom, added in v2. Sparse: only opinions that actually moved
+        /// have a row, so a fresh game persists an empty list rather than a full matrix of zeros.
+        /// Initialised here as well as in RelationshipStore because JsonUtility leaves a field the
+        /// file does not mention at whatever the constructor set, and a v1 file mentions none.
+        /// </summary>
+        public List<RelationshipRow> relationships = new List<RelationshipRow>();
     }
 }

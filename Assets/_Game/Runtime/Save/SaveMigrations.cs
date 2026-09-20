@@ -6,14 +6,22 @@ namespace GosipSimulator.Save
 {
     /// <summary>
     /// The upgrade chain. Each entry turns one version into the next; Migrate walks them until
-    /// CURRENT_VERSION. With version 1 the chain is empty, which is correct, not forgotten: there
-    /// is nothing to migrate yet.
+    /// CURRENT_VERSION. A save is migrated and never replaced (R14, M7).
     /// </summary>
     public class SaveMigrations
     {
         private static readonly Dictionary<int, Func<SaveData, SaveData>> Migrations = new()
         {
-            // [1] = data => { data.newField = defaultValue; data.saveVersion = 2; return data; },
+            // v1 knew nothing about opinions. An empty list is the right v2 value and not a
+            // placeholder: a village that was never played against has wronged nobody, so the
+            // player loses nothing here. Currency and totalEarned are carried over untouched,
+            // which is the whole point of migrating instead of starting fresh.
+            [1] = data =>
+            {
+                data.relationships ??= new List<RelationshipRow>();
+                data.saveVersion = 2;
+                return data;
+            },
         };
 
         // ────────────────────────────────

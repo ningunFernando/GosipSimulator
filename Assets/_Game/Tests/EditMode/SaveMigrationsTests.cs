@@ -51,19 +51,11 @@ namespace GosipSimulator.Tests
         #region Tests
 
         [Test]
-        public void Migrate_OldVersion_UpgradesWithoutDataLoss()
+        public void Migrate_V1Save_UpgradesToV2AndKeepsProgress()
         {
-            // CURRENT_VERSION is 1 and the shipped chain is empty, so the while loop in Migrate
-            // has no production input yet and would stay dead code. The synthetic step below is
-            // the only way to exercise the walk before the first real migration exists; TearDown
-            // removes it again. When CURRENT_VERSION reaches 2, replace this with the real step.
-            MigrationTable()[0] = data =>
-            {
-                data.saveVersion = 1;
-                return data;
-            };
-
-            SaveData stored = new SaveData { saveVersion = 0, currency = 120, totalEarned = 300 };
+            // The real shipped step now, not a synthetic one: v1 is what every save written before
+            // the village existed looks like.
+            SaveData stored = new SaveData { saveVersion = 1, currency = 120, totalEarned = 300 };
 
             SaveData migrated = new SaveMigrations().Migrate(stored);
 
@@ -71,6 +63,48 @@ namespace GosipSimulator.Tests
             Assert.AreEqual(SaveData.CURRENT_VERSION, migrated.saveVersion);
             Assert.AreEqual(120, migrated.currency, "The migration lost the player's currency.");
             Assert.AreEqual(300, migrated.totalEarned, "The migration lost the lifetime accumulator.");
+
+            Assert.IsNotNull(migrated.relationships, "v2 must always have a list, never null.");
+            Assert.AreEqual(0, migrated.relationships.Count,
+                "A village that was never played against has wronged nobody.");
+        }
+
+        [Test]
+        public void Migrate_V1SaveWithNoRelationshipList_GetsAnEmptyOne()
+        {
+            // JsonUtility reading a v1 file leaves any field the file does not mention at whatever
+            // the constructor set, but a SaveData built by hand, or a future field whose default
+            // changes, can still arrive null. The migration repairs it instead of passing null on.
+            SaveData stored = new SaveData { saveVersion = 1, relationships = null };
+
+            SaveData migrated = new SaveMigrations().Migrate(stored);
+
+            Assert.IsNotNull(migrated);
+            Assert.IsNotNull(migrated.relationships, "The migration passed a null list forward.");
+            Assert.AreEqual(0, migrated.relationships.Count);
+        }
+
+        [Test]
+        public void Migrate_AcrossTwoVersions_WalksTheWholeChain()
+        {
+            // A save old enough to need more than one step. The v0 step is synthetic because no
+            // real one exists, and TearDown removes it; the v1 step it hands over to is the
+            // shipped one, so this covers the walk itself and not just a single hop.
+            MigrationTable()[0] = data =>
+            {
+                data.saveVersion = 1;
+                return data;
+            };
+
+            SaveData stored = new SaveData { saveVersion = 0, currency = 42, totalEarned = 77 };
+
+            SaveData migrated = new SaveMigrations().Migrate(stored);
+
+            Assert.IsNotNull(migrated, "The chain existed end to end and Migrate still gave up.");
+            Assert.AreEqual(SaveData.CURRENT_VERSION, migrated.saveVersion);
+            Assert.AreEqual(42, migrated.currency, "A two step walk lost the player's currency.");
+            Assert.AreEqual(77, migrated.totalEarned);
+            Assert.IsNotNull(migrated.relationships, "The v1 step did not run on the way through.");
         }
 
         [Test]

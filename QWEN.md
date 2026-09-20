@@ -52,24 +52,31 @@ grafías de la misma palabra en la misma ruta. No rompe nada, pero conviene eleg
 ## Estado
 
 **Hecho y verificado.** El fork y el renombrado completo (`778fff6`), la documentación reescrita para
-este proyecto (`bc03fb4`), la capa de dominio del chisme (`99acc35` y `fc30717`), y el hito 6: el
-adapter `GossipManager` y su cableado en `Scene_Game`. Medido el 2026-09-20 con el Editor abierto y el
-CLI de Unity MCP:
+este proyecto (`bc03fb4`), la capa de dominio del chisme (`99acc35` y `fc30717`), el hito 6 (`59d5399`):
+el adapter `GossipManager` y su cableado en `Scene_Game`, y el hito 7: `SaveData` v2 y la persistencia de
+las opiniones. Medido el 2026-09-20 con el Editor abierto y el CLI de Unity MCP:
 
 | Suite | Tests | Errores en consola | Warnings |
 |---|---|---|---|
-| EditMode | 145 en verde | 6 | 7 |
-| PlayMode | 18 en verde | 6 | 0 |
+| EditMode | 167 en verde | 6 | 7 |
+| PlayMode | 22 en verde | 6 | 2 |
 
 Los 6 y los 6 errores son los esperados: cada test de un caso de error declara su mensaje con
 `LogAssert.Expect`. El que subió el número de PlayMode de 5 a 6 es
-`AnActionWithNoDefinition_IsRejectedWithAnErrorAndMovesNobody`. Los 7 warnings vienen de
+`AnActionWithNoDefinition_IsRejectedWithAnErrorAndMovesNobody`. Los 7 warnings de EditMode vienen de
 `ObjectPoolManagerTests` y `EventBusTests`, que ejercitan a propósito las ramas de aviso (`TestPool`,
 `TestEvent`). Cero warnings del compilador.
 
-De los 145 de EditMode, **70 son heredados de la plantilla y 75 son del chisme**: 29 de
-`RelationshipGraph`, 22 de `RumorPropagator` y 24 de `GossipService`. De los 18 de PlayMode, **12 son
-heredados y 6 son del chisme**, los seis en `GossipFlowTests`.
+**Los 2 warnings de PlayMode son nuevos del hito 7 y no son un fallo.** Los dos dicen
+`[ObjectPoolManager] Pool 'Pickup' empty. Expanding.`: los cuatro tests de persistencia arrancan el juego
+entero, cada arranque pide cuatro pickups, el pool tiene cuatro, y con más arranques seguidos le toca
+expandirse. Se comprobó leyendo la consola, no adivinando, y `PickupFlowTests` sigue en verde. Antes de
+tratarlo como un fallo, mirar si el número cambia al añadir o quitar tests que arranquen el juego.
+
+De los 167 de EditMode, **70 son heredados de la plantilla y 97 son del chisme y su persistencia**: 29 de
+`RelationshipGraph`, 22 de `RumorPropagator`, 24 de `GossipService`, 20 de `RelationshipStore` y 2 nuevos
+en `SaveMigrationsTests`. De los 22 de PlayMode, **12 son heredados y 10 nuevos**: 6 en `GossipFlowTests`
+y 4 en `RelationshipPersistenceTests`.
 
 **Del chisme existe la capa de dominio y su adapter.** En `Runtime/Gosip/`, cinco tipos con la forma de
 cuatro capas que ya usan `Save` y `Pickups`: `RelationshipGraph` y `SocialGraph` son datos puros,
@@ -85,22 +92,28 @@ En `Data`, cuatro tipos de configuración (`SocialTie`, `NpcDefinitionSO`, `Goss
 anciano, que la pausa lo detiene a medio camino, y que `Restore` no publica. La regla del repo ("todo lo
 que se escribe tiene un call site y un test que lo ejecuta") vuelve a cumplirse.
 
-**Lo que todavía no ocurre es que alguien publique `OnActionWitnessed`.** El servicio escucha y su
-`Tick` corre, pero sin `Npcs` nadie presencia nada, así que en una partida la aldea no se entera. Eso es
-el hito 8, no un defecto del 6: el dominio ya no es código que nunca corre.
+**El hito 7 cerró la persistencia.** `SaveData` va por `CURRENT_VERSION = 2` con una lista de
+`RelationshipRow`, y `SaveMigrations` tiene por fin una entrada real, `[1]`, que añade la lista vacía y
+conserva moneda y acumulado. `RelationshipStore` es el dominio de lo que se escribe, con la misma
+dispersión que `RelationshipGraph`: una opinión de vuelta a cero borra su fila en vez de dejar un cero en
+el archivo. `SaveSystem` escucha `OnRelationshipChanged` y publica `OnRelationshipsRestored` al llegar
+`OnBootstrapComplete`, así que `Gossip` y `Save` siguen sin conocerse (R3, R4).
+
+**Lo que todavía no ocurre es que alguien publique `OnActionWitnessed`.** El servicio escucha, su `Tick`
+corre y lo que mueve se guarda, pero sin `Npcs` nadie presencia nada, así que en una partida la aldea no
+se entera. Eso es el hito 8, no un defecto del 6 ni del 7.
 
 **Lo que falta, en orden.** Cada hito es verificable por sí solo.
 
 | # | Hito | Qué desbloquea |
 |---|---|---|
-| 7 | `SaveData` v2, `RelationshipRow`, migración `[1]`, y `SaveSystem` escuchando `OnRelationshipChanged` y publicando `OnRelationshipsRestored` | Que las opiniones sobrevivan a una sesión |
 | 8 | Assembly `Npcs`: `Npc`, `PerceptionResolver`, `NpcRegistry` | Que alguien presencie algo y publique `OnActionWitnessed` |
 | 9 | Assembly `Actions`: `Interactable`, `ActionCatalog`, `InteractionReader`, y la acción `Interact` en `InputSystem_Actions` | Que el jugador pueda robar |
 | 10 | Assembly `Shop`: `PricingPolicy`, `Shopkeeper`, y los cinco eventos que faltan | Que el herrero cobre más o se niegue |
 | 11 | `DebugHudModel` y `DebugHud` mostrando la opinión | Verlo funcionar sin depurador |
 
-El hito 6 está hecho. El 7 es el que cierra el ciclo mínimo demostrable por tests. Del 8 al 11 es lo
-que lo hace jugable.
+Los hitos 6 y 7 están hechos, y con ellos el ciclo mínimo demostrable por tests: el dominio corre en una
+partida y lo que cambia sobrevive a cerrarla. Del 8 al 11 es lo que lo hace jugable.
 
 ## Decisiones tomadas
 
@@ -352,12 +365,12 @@ placeholders. Si diverge de la de HamsterBall, da igual, ninguna se va a volver 
 3. **No se pudo comprobar si la plantilla tenía cambios sin commitear** en el momento del fork, por el
    guard del shell. `git -C ../Unity/DecoupledTemplate status` desde fuera de esta sesión lo resuelve.
    Si había algo, este fork no lo tiene.
-4. **Construir el resto del chisme: hitos 7 a 11.** El hito 6 se cerró el 2026-09-20: `Gossip` tiene sus
-   cinco tipos, `Data` los suyos, y hay 75 tests de EditMode más 6 de PlayMode. Falta `SaveData` v2 con
-   su migración y las assemblies `Npcs`, `Actions` y `Shop`. El orden está en la tabla de
-   [Estado](#estado) y el diseño en `ARCHITECTURE.md`. **El hito 8 es el que más cambia lo que se ve al
-   jugar**, porque es el que hace que alguien presencie algo; el 7 es el que hace que lo presenciado
-   sobreviva a cerrar el juego.
+4. **Construir el resto del chisme: hitos 8 a 11.** Los hitos 6 y 7 se cerraron el 2026-09-20: `Gossip`
+   tiene sus cinco tipos, `Save` va por v2 con `RelationshipRow` y `RelationshipStore`, y hay 97 tests
+   de EditMode más 10 de PlayMode cubriéndolo. Faltan las assemblies `Npcs`, `Actions` y `Shop`. El
+   orden está en la tabla de [Estado](#estado) y el diseño en `ARCHITECTURE.md`. **El hito 8 es el
+   siguiente y el que más cambia lo que se ve al jugar**, porque es el que hace que alguien presencie
+   algo: hasta entonces toda la maquinaria existe y nadie la enciende.
 5. **Cabos sueltos de autoría en los assets.** Uno de ellos acaba de encarecerse:
    - `NewGossipConfig.asset` conserva el nombre por defecto del `CreateAssetMenu`, y desde el hito 6
      **ya está referenciado** por el `GossipManager` de `Scene_Game`. Renombrarlo sigue siendo barato,

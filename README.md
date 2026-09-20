@@ -17,11 +17,13 @@ adapter que la arranca**: el grafo de opiniones, el grafo social, la propagació
 que publica, los ScriptableObjects, los assets de la aldea y el `GossipManager` que lo monta todo en
 `Scene_Game`. Las dos suites pasan, 145 en EditMode y 18 en PlayMode.
 
-**El chisme ya corre en una partida, pero todavía nadie lo dispara.** El hito 6 cerró el call site que
-faltaba: al entrar en juego existe un `GossipService` de verdad, construido desde los assets, que recibe
-avistamientos del bus y mueve los rumores en tiempo de juego. Lo que no existe todavía es quien publique
-`OnActionWitnessed`, así que al jugar sigue ocurriendo lo mismo que en la plantilla hasta que llegue
-`Npcs`. La sección [El sistema de chisme](#el-sistema-de-chisme) separa lo que existe de lo que falta.
+**El chisme ya corre en una partida y ya sobrevive a cerrarla, pero todavía nadie lo dispara.** El hito
+6 cerró el call site que faltaba y el 7 la persistencia: al entrar en juego existe un `GossipService` de
+verdad, construido desde los assets, que recibe avistamientos del bus, mueve los rumores en tiempo de
+juego, escribe cada opinión en `save.json` y la recupera al arrancar. Lo que no existe todavía es quien
+publique `OnActionWitnessed`, así que al jugar sigue ocurriendo lo mismo que en la plantilla hasta que
+llegue `Npcs`. La sección [El sistema de chisme](#el-sistema-de-chisme) separa lo que existe de lo que
+falta.
 
 | Documento | Para qué sirve |
 |---|---|
@@ -106,18 +108,25 @@ Medido el 2026-09-20 en este repo, con el Editor abierto y el CLI de Unity MCP:
 
 | Suite | Tests | Errores esperados en consola | Warnings |
 |---|---|---|---|
-| EditMode | 145 en verde | 6 | 7 |
-| PlayMode | 18 en verde | 6 | 0 |
+| EditMode | 167 en verde | 6 | 7 |
+| PlayMode | 22 en verde | 6 | 2 |
 
-De los 145 de EditMode, **70 vienen de la plantilla y 75 son del chisme**: 29 de `RelationshipGraph`,
-22 de `RumorPropagator` y 24 de `GossipService`. De los 18 de PlayMode, **12 vienen de la plantilla y 6
-son del chisme**, todos en `GossipFlowTests`. El sexto error esperado de PlayMode es de ese archivo: el
-test que comprueba que una acción sin definición se rechaza declara su mensaje con `LogAssert.Expect`.
+De los 167 de EditMode, **70 vienen de la plantilla y 97 son del chisme y su persistencia**: 29 de
+`RelationshipGraph`, 22 de `RumorPropagator`, 24 de `GossipService`, 20 de `RelationshipStore` y 2 más
+en `SaveMigrationsTests` desde que existe la migración real. De los 22 de PlayMode, **12 vienen de la
+plantilla y 10 son nuevos**: 6 en `GossipFlowTests` y 4 en `RelationshipPersistenceTests`. El sexto
+error esperado de PlayMode sale del test que comprueba que una acción sin definición se rechaza.
 
 Los errores son intencionados: cada test que prueba un caso de error declara el mensaje con
 `LogAssert.Expect` y falla si no aparece. `verify` los cuenta igualmente porque solo lee la consola, no
-sabe cuáles espera cada test. Los 7 warnings salen de `ObjectPoolManagerTests` y `EventBusTests`, que
-ejercitan a propósito sus ramas de aviso. Si un número no coincide, algo ha cambiado de verdad.
+sabe cuáles espera cada test. Los 7 warnings de EditMode salen de `ObjectPoolManagerTests` y
+`EventBusTests`, que ejercitan a propósito sus ramas de aviso.
+
+Los 2 de PlayMode son `[ObjectPoolManager] Pool 'Pickup' empty. Expanding.` y aparecieron con el hito 7,
+al sumar cuatro tests que arrancan el juego entero. Cada arranque pide cuatro pickups y el pool tiene
+cuatro, así que con más arranques seguidos le toca expandirse. Es el pool haciendo lo que está diseñado
+para hacer, no un fallo: si alguien lo confunde con uno, la pista es que `PickupFlowTests` sigue en
+verde. Si un número no coincide, algo ha cambiado de verdad.
 
 **Si `verify` muere con `server_stopped`, el Editor está bien.** `verify` fuerza una recompilación, la
 recompilación provoca una recarga de dominio, y la recarga tira el servidor MCP con la petición en vuelo.
@@ -305,7 +314,6 @@ no es un dominio sin call site, que es el defecto central de HamsterBall.
 
 | # | Hito |
 |---|---|
-| 7 | `SaveData` v2 con `RelationshipRow`, la migración `[1]`, y `SaveSystem` escuchando `OnRelationshipChanged` y publicando `OnRelationshipsRestored` |
 | 8 | `Npcs`: `Npc`, `PerceptionResolver`, `NpcRegistry` |
 | 9 | `Actions`: `Interactable`, `ActionCatalog`, `InteractionReader`, y la acción `Interact` en `InputSystem_Actions` |
 | 10 | `Shop`: `PricingPolicy`, `Shopkeeper`, y los cinco eventos que faltan |

@@ -144,17 +144,21 @@ suscriptores, lo que hace visible un bus decorativo (A1). Las suscripciones se h
 | `OnPickupCollected` | `PickupSpawner`, cuando el jugador toca un pickup | `SaveSystem` (lo convierte en moneda) |
 | `OnProgressChanged` | `ProgressService`, tras mutar el progreso | `SaveSystem` (marca el save como sucio), `DebugHud` |
 | `OnActionWitnessed` | **nadie todavía**; lo publicará `Npcs`, un evento por testigo | `GossipManager` |
-| `OnRelationshipChanged` | `GossipService`, solo si la opinión cambió de verdad | **nadie en runtime**; lo escucharán `SaveSystem`, `Shopkeeper` y `DebugHud`. Hoy solo los tests |
+| `OnRelationshipChanged` | `GossipService`, solo si la opinión cambió de verdad | `SaveSystem`, que lo convierte en una fila persistida. Faltan `Shopkeeper` y `DebugHud` |
 | `OnRumorSpread` | `GossipService`, por cada salto que de verdad mueve a alguien | **nadie en runtime**; lo escuchará `DebugHud` |
-| `OnRelationshipsRestored` | **nadie todavía**; lo publicará `SaveSystem` al llegar `OnBootstrapComplete` | `GossipManager` |
+| `OnRelationshipsRestored` | `SaveSystem`, al llegar `OnBootstrapComplete` | `GossipManager` |
 
-Los dos que `GossipManager` escucha ya tienen consumidor en una partida desde el hito 6, y ninguno tiene
-productor todavía: suscribirse sin que nadie publique no genera ningún aviso, así que eso es gratis. Los
-dos que `Gossip` publica siguen sin consumidor en runtime, y ahí el aviso de `EventBus` sí saltaría, por
-lo que en la práctica no se publican: nada los dispara mientras nadie presencie una acción. Los tests
-del chisme suscriben sumideros antes de publicar nada, precisamente para no ensuciar la consola con un
-aviso que no significa nada. Cuando llegue `Npcs` sin que exista `Shop` ni el HUD de opinión, ese aviso
-saldrá y será información buena: dirá que hay un evento que nadie aprovecha todavía.
+De los cuatro del chisme, tres ya están conectados por los dos extremos o por el que importa.
+`OnRelationshipsRestored` tiene productor y consumidor desde el hito 7 y se publica en cada arranque.
+`OnRelationshipChanged` tiene consumidor real, `SaveSystem`, así que una opinión que se mueve acaba en
+el archivo. `OnActionWitnessed` tiene consumidor y sigue sin productor, que es el hito 8; suscribirse
+sin que nadie publique no genera ningún aviso, así que eso es gratis.
+
+El único que sigue sin consumidor en runtime es `OnRumorSpread`, y ahí el aviso de `EventBus` sí
+saltaría. En la práctica no salta porque nada lo dispara mientras nadie presencie una acción, y los
+tests suscriben un sumidero antes de publicar nada para no ensuciar la consola con un aviso que no
+significa nada. Cuando llegue `Npcs` sin que exista el HUD de opinión, ese aviso saldrá y será
+información buena: dirá que hay un evento que nadie aprovecha todavía.
 
 ### El ciclo de recolección
 
@@ -199,8 +203,15 @@ flowchart LR
 | Capa | Tipo | Responsabilidad |
 |---|---|---|
 | Infraestructura | `ISaveStorage`, `JsonSaveStorage` | Leer y escribir disco con escritura transaccional (`.tmp` y luego mover) |
-| Dominio | `ProgressService`, `SaveMigrations`, `SaveData` | Mutar el progreso validando invariantes; migrar versiones en cadena |
+| Dominio | `ProgressService`, `RelationshipStore`, `SaveMigrations`, `SaveData`, `RelationshipRow` | Mutar el progreso y las opiniones validando invariantes; migrar versiones en cadena |
 | Adapter | `SaveSystem` | Ciclo de vida de Unity: `persistentDataPath`, pausa del juego y de la aplicación, eventos del bus |
+
+`RelationshipStore` es a las opiniones lo que `ProgressService` es a la moneda, y comparte su forma: C#
+puro, dueño de una invariante, probado en EditMode sin escena. La invariante aquí es la dispersión, la
+misma que `RelationshipGraph`: una opinión de vuelta a cero borra su fila en vez de dejar un cero en el
+archivo, así que el save solo crece con opiniones que de verdad se movieron. Rechaza además la pareja
+consigo mismo, que `RelationshipGraph` no aceptaría al cargarla de vuelta, y devuelve `false` en vez de
+lanzar: un evento mal formado cuesta una fila, no la partida (R9).
 
 El save lleva `saveVersion` desde el primer día y se migra, nunca se borra: antes de migrar se hace
 backup (R14). `OnApplicationPause(true)` es el disparador de guardado de plataforma, porque
@@ -411,9 +422,19 @@ los handlers.
 
 ### Persistencia
 
-`SaveData` pasa a `CURRENT_VERSION = 2` con una lista de opiniones, y `SaveMigrations` gana la entrada
-`[1]`, que hoy está vacía y comentada a propósito. R14 sigue mandando: backup antes de migrar, y nunca
-borrar. La simetría con lo que ya existe es deliberada: igual que `SaveSystem` convierte
-`OnPickupCollected` en moneda sin que `Pickups` lo sepa, convertirá `OnRelationshipChanged` en una fila
-persistida sin que `Gossip` lo sepa, y `OnPurchaseApproved` en un `TrySpend`.
+**Hecho en el hito 7.** `SaveData` está en `CURRENT_VERSION = 2` con una lista de `RelationshipRow`, y
+`SaveMigrations` tiene su primera entrada real, `[1]`: añade la lista vacía y conserva moneda y
+acumulado. R14 se cumple de verdad y hay un test de PlayMode que lo comprueba contra un archivo v1
+escrito a mano, incluida la copia `.v1.bak`, que es byte a byte la original porque `Backup` copia el
+archivo en vez de volver a serializar el objeto.
+
+La simetría con lo que ya existía resultó ser exacta: igual que `SaveSystem` convierte
+`OnPickupCollected` en moneda sin que `Pickups` lo sepa, ahora convierte `OnRelationshipChanged` en una
+fila persistida sin que `Gossip` lo sepa. Lo que queda de esa frase es `OnPurchaseApproved` en un
+`TrySpend`, que llega con `Shop`.
+
+Un detalle que solo se ve al escribirlo: `GossipService.Restore` tiene que seguir siendo silencioso. Si
+publicara un `OnRelationshipChanged` por fila, `SaveSystem` se marcaría sucio al cargar y la partida se
+reescribiría a sí misma en la primera pausa. Hay un test de PlayMode dedicado a eso, y falla borrando el
+archivo después de cargar y comprobando que una pausa no lo vuelve a crear.
 

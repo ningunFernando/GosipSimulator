@@ -23,11 +23,12 @@ namespace GosipSimulator.Save
 
         #endregion
 
-        private ISaveStorage    _storage;
-        private SaveMigrations  _migrations;
-        private ProgressService _progress;
-        private SaveData        _data;
-        private bool            _dirty;
+        private ISaveStorage      _storage;
+        private SaveMigrations    _migrations;
+        private ProgressService   _progress;
+        private RelationshipStore _relationships;
+        private SaveData          _data;
+        private bool              _dirty;
 
         // ────────────────────────────────
         // LIFECYCLE
@@ -50,6 +51,8 @@ namespace GosipSimulator.Save
             EventBus.Subscribe<OnProgressChanged>(MarkDirty);
             EventBus.Subscribe<OnPickupCollected>(HandlePickupCollected);
             EventBus.Subscribe<OnGameStateChanged>(HandleGameStateChanged);
+            EventBus.Subscribe<OnRelationshipChanged>(HandleRelationshipChanged);
+            EventBus.Subscribe<OnBootstrapComplete>(HandleBootstrapComplete);
         }
 
         private void OnDisable()
@@ -57,6 +60,8 @@ namespace GosipSimulator.Save
             EventBus.Unsubscribe<OnProgressChanged>(MarkDirty);
             EventBus.Unsubscribe<OnPickupCollected>(HandlePickupCollected);
             EventBus.Unsubscribe<OnGameStateChanged>(HandleGameStateChanged);
+            EventBus.Unsubscribe<OnRelationshipChanged>(HandleRelationshipChanged);
+            EventBus.Unsubscribe<OnBootstrapComplete>(HandleBootstrapComplete);
         }
 
         /// <summary>
@@ -86,6 +91,12 @@ namespace GosipSimulator.Save
         /// </summary>
         public ProgressService Progress => _progress;
 
+        /// <summary>
+        /// The persisted opinions, for the tests and for anything that has to read what is on file
+        /// rather than what Gossip currently holds. Gossip stays the owner of the live value (R7).
+        /// </summary>
+        public RelationshipStore Relationships => _relationships;
+
         public void Load()
         {
             SaveData stored = _storage.Load();
@@ -104,9 +115,11 @@ namespace GosipSimulator.Save
             }
 
             _progress = new ProgressService(_data);
+            _relationships = new RelationshipStore(_data);
             _dirty = false;
 
-            Log.Trace($"[SaveSystem] Loaded save v{_data.saveVersion} with currency {_data.currency}.");
+            Log.Trace($"[SaveSystem] Loaded save v{_data.saveVersion} with currency {_data.currency} " +
+                      $"and {_relationships.Count} opinions.");
         }
 
         public void Save()
@@ -161,6 +174,49 @@ namespace GosipSimulator.Save
         private void HandleGameStateChanged(OnGameStateChanged e)
         {
             if (e.newState == GameState.Paused) SaveIfDirty();
+        }
+
+        /// <summary>
+        /// Save owns what is on disk, so it turns an opinion change into a persisted row without
+        /// Gossip ever learning that a file exists, the same deal Pickups already has (R4).
+        /// </summary>
+        private void HandleRelationshipChanged(OnRelationshipChanged e)
+        {
+            if (_relationships == null)
+            {
+                Log.Error("[SaveSystem] Relationship changed before Load. The opinion was not persisted.");
+                return;
+            }
+
+            if (!_relationships.Record(e.npcId, e.aboutId, e.current, e.reason))
+            {
+                Log.Error($"[SaveSystem] Refused an opinion row for npc '{e.npcId}' about '{e.aboutId}'. " +
+                          "Not persisted.");
+                return;
+            }
+
+            _dirty = true;
+        }
+
+        /// <summary>
+        /// Hands Gossip what was on file, once the game scene is loaded and its objects have
+        /// subscribed in OnEnable (R10). Pushed rather than pulled because Gossip cannot reference
+        /// Save and Save cannot reference Gossip (R3), and pushing on this event is what makes the
+        /// two independent of the order the bus happens to deliver handlers in.
+        /// </summary>
+        private void HandleBootstrapComplete(OnBootstrapComplete e)
+        {
+            if (_relationships == null)
+            {
+                Log.Error("[SaveSystem] Bootstrap completed before Load. No opinions were restored.");
+                return;
+            }
+
+            // Published even when empty: a fresh save is a valid answer to "what did I have", and
+            // staying silent would leave Gossip unable to tell an empty file from a missing one.
+            EventBus.Publish(_relationships.ToRestoredPayload());
+
+            Log.Trace($"[SaveSystem] Restored {_relationships.Count} opinions to the village.");
         }
 
         #endregion
