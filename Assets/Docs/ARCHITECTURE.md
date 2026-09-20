@@ -16,10 +16,10 @@ fallos auditados en el proyecto de referencia de la plantilla (HamsterBall).
   [`README.md`](../../README.md).
 
 Este documento describe **cómo está hecho el proyecto hoy**, no cómo debería hacerse: donde el repo se
-aparta de la guía, lo dice. Todo lo que cuenta aquí existe y se ejecuta, con una excepción que se señala
-donde toca: el módulo `Gossip` tiene su capa de dominio completa y probada, pero todavía ningún adapter
-que la ponga en marcha en una escena. Lo que falta del sistema de chisme va en la última sección y en el
-`README.md`.
+aparta de la guía, lo dice. Todo lo que cuenta aquí existe y se ejecuta. El módulo `Gossip` está
+completo desde el hito 6, dominio y adapter, y corre en `Scene_Game`; lo que todavía no existe es quien
+le dé trabajo, porque nadie publica `OnActionWitnessed` hasta que exista `Npcs`. Lo que falta del
+sistema de chisme va en la última sección y en el `README.md`.
 
 ## Assemblies
 
@@ -35,7 +35,7 @@ namespace raíz coincide con el nombre de la assembly.
 | `Save` | `Core`, `Data` | Guardado en tres capas; convierte recolecciones en progreso y guarda al pausar |
 | `Player` | `Core`, `Data`, `Unity.InputSystem` | Input (movimiento y pausa) y movimiento del jugador |
 | `Pickups` | `Core`, `Data` | Objetos recolectables que salen del pool y vuelven a él |
-| `Gossip` | `Core`, `Data` | Opiniones entre NPCs y propagación de rumores. Solo la capa de dominio; todavía sin adapter. Vive en `Runtime/Gosip/`, con otra grafía que el nombre de la assembly |
+| `Gossip` | `Core`, `Data` | Opiniones entre NPCs y propagación de rumores, dominio y adapter. Vive en `Runtime/Gosip/`, con otra grafía que el nombre de la assembly |
 | `Debug` | `Core`, `Data`, `Player` | HUD de desarrollo. Solo compila con `UNITY_EDITOR \|\| DEVELOPMENT_BUILD` |
 | `Tests.EditMode` | `Core`, `Data`, `Save`, `Player`, `Debug`, `Pickups`, `Gossip` | Tests de lógica pura, solo Editor |
 | `Tests.PlayMode` | `Core`, `Data`, `Save`, `Player`, `Debug`, `Pickups`, `Gossip`, `Unity.InputSystem` | Tests de extremo a extremo con escenas reales |
@@ -143,14 +143,18 @@ suscriptores, lo que hace visible un bus decorativo (A1). Las suscripciones se h
 | `OnPauseRequested` | `PlayerInputReader`, con Esc o Start | `GameManager` (alterna `Play` y `Paused`) |
 | `OnPickupCollected` | `PickupSpawner`, cuando el jugador toca un pickup | `SaveSystem` (lo convierte en moneda) |
 | `OnProgressChanged` | `ProgressService`, tras mutar el progreso | `SaveSystem` (marca el save como sucio), `DebugHud` |
-| `OnActionWitnessed` | **nadie todavía**; lo publicará `Npcs`, un evento por testigo | **nadie en runtime**; lo escuchará `GossipManager` |
+| `OnActionWitnessed` | **nadie todavía**; lo publicará `Npcs`, un evento por testigo | `GossipManager` |
 | `OnRelationshipChanged` | `GossipService`, solo si la opinión cambió de verdad | **nadie en runtime**; lo escucharán `SaveSystem`, `Shopkeeper` y `DebugHud`. Hoy solo los tests |
 | `OnRumorSpread` | `GossipService`, por cada salto que de verdad mueve a alguien | **nadie en runtime**; lo escuchará `DebugHud` |
-| `OnRelationshipsRestored` | **nadie todavía**; lo publicará `SaveSystem` al llegar `OnBootstrapComplete` | **nadie en runtime**; lo escuchará `GossipManager` |
+| `OnRelationshipsRestored` | **nadie todavía**; lo publicará `SaveSystem` al llegar `OnBootstrapComplete` | `GossipManager` |
 
-Las cuatro últimas existen como contrato y están cubiertas por tests, pero ninguna tiene todavía un
-productor ni un consumidor en una partida. No se publican, así que el aviso de `EventBus` por publicar
-sin suscriptores no salta: es la razón por la que se definieron antes de tiempo y no se publicaron.
+Los dos que `GossipManager` escucha ya tienen consumidor en una partida desde el hito 6, y ninguno tiene
+productor todavía: suscribirse sin que nadie publique no genera ningún aviso, así que eso es gratis. Los
+dos que `Gossip` publica siguen sin consumidor en runtime, y ahí el aviso de `EventBus` sí saltaría, por
+lo que en la práctica no se publican: nada los dispara mientras nadie presencie una acción. Los tests
+del chisme suscriben sumideros antes de publicar nada, precisamente para no ensuciar la consola con un
+aviso que no significa nada. Cuando llegue `Npcs` sin que exista `Shop` ni el HUD de opinión, ese aviso
+saldrá y será información buena: dirá que hay un evento que nadie aprovecha todavía.
 
 ### El ciclo de recolección
 
@@ -229,8 +233,8 @@ Entrar en Play directamente desde `Scene_Game` no hace aparecer pickups: sin boo
 
 ### Gossip
 
-El primer módulo propio del juego. Tiene las tres primeras capas y le falta la cuarta, que es justo la
-que lo conectaría a una partida.
+El primer módulo propio del juego, y desde el hito 6 el único del chisme que está completo: las tres
+capas de dominio más el adapter que lo conecta a una partida.
 
 | Tipo | Clase | Responsabilidad |
 |---|---|---|
@@ -238,7 +242,7 @@ que lo conectaría a una partida.
 | Datos | `SocialGraph` | Quién confía en quién y cuánto. Inmutable tras construirse y con los lazos ordenados por id, porque el orden de un `Dictionary` no es contractual y un frente sin orden haría que el recorrido variara entre ejecuciones |
 | Dominio | `RumorPropagator` | `Plan` devuelve todos los saltos como datos, en anchura. Cada NPC se entera una vez y por el camino más corto. `Carry` aplica la confianza y luego el decaimiento, y un salto que se trunca a cero no se planea |
 | Dominio | `GossipService` | Dueño del grafo de opiniones. `WitnessAction` mueve al testigo y encola la historia; `Tick` libera los saltos vencidos en tiempo de juego, así que la pausa los detiene; `Restore` aplica un save en silencio |
-| Adapter | **falta** | `GossipManager`: construir el servicio desde los SO en `Awake`, suscribirse en `OnEnable` y llamar a `Tick(Time.deltaTime)` en `Update` |
+| Adapter | `GossipManager` | Construye el servicio desde los SO en `Awake`, se suscribe en `OnEnable` y llama a `Tick(Time.deltaTime)` en `Update`. Traduce `SocialTie` a `SocialGraph.Tie` y resuelve el `actionId` del evento a su delta base. Vive en el objeto `SocialGraph` de `Scene_Game` |
 
 Tres detalles que no se ven en las firmas:
 
@@ -294,10 +298,16 @@ sistemas están conectados. Los del chisme son nuevos y cubren solo lógica pura
 
 El número de tests, su duración y los errores esperados en consola están en el `README.md`.
 
-**Del chisme no hay ningún test de PlayMode, y hoy no puede haberlo**: nada del módulo aparece en una
-escena, así que no hay recorrido de extremo a extremo que ejercitar. Los 75 casos nuevos son todos de
-EditMode y corren contra el bus con sinks en vez de suscriptores reales. Los de PlayMode llegan con el
-adapter.
+**El chisme tiene 75 casos de EditMode y 6 de PlayMode.** Los de EditMode cubren el dominio y corren
+contra el bus con sumideros en vez de suscriptores reales. Los 6 de PlayMode llegaron con el adapter, en
+`GossipFlowTests`, y son los que comprueban que el módulo existe de verdad en una partida: que
+`Scene_Game` construye un `GossipManager` desde los assets, que un `OnActionWitnessed` en el bus mueve
+al testigo y publica el cambio, que el rumor llega al herrero en -5 y al aldeano en -1 y muere antes del
+anciano, que pausar detiene una historia a medio camino y reanudar la termina, que `Restore` aplica un
+save sin publicar nada, y que una acción sin definición se rechaza con un error y no mueve a nadie.
+
+Los números de ese tercer test son los de los assets de la aldea, no constantes inventadas: si alguien
+retoca `Robbery` o el decaimiento, el test falla y dice que la documentación del README ya no vale.
 
 ## Resumen de las 14 reglas
 
@@ -320,10 +330,10 @@ adapter.
 
 ## El sistema de chisme: lo que falta
 
-`Gossip` ya existe, y su capa de dominio está descrita en [Módulos](#gossip). Esta sección cubre las
-otras tres assemblies y el recorrido completo, que es lo que convierte ese dominio en una partida. Va
-aquí porque cambia el grafo de assemblies y porque la restricción R3 obliga a una decisión concreta
-sobre cómo circula el estado.
+`Gossip` ya existe entero, dominio y adapter, y está descrito en [Módulos](#gossip). Esta sección cubre
+las otras tres assemblies y el recorrido completo, que es lo que le da trabajo a ese módulo. Va aquí
+porque cambia el grafo de assemblies y porque la restricción R3 obliga a una decisión concreta sobre
+cómo circula el estado.
 
 ### Tres hojas nuevas
 
@@ -337,8 +347,7 @@ entre ellas ni con `Gossip`. El grafo sigue siendo acíclico y `Debug` y los tes
 | `Actions` | `Core`, `Data`, `Unity.InputSystem` | Verbos del jugador. Valida y publica, no interpreta |
 | `Shop` | `Core`, `Data` | Condiciones del herrero: multiplicador de precio y negativa |
 
-De `Gossip` solo falta el adapter, `GossipManager`, que es lo que hace que todo lo anterior exista en
-una escena y no solo en los tests.
+De `Gossip` no falta nada: `GossipManager` cerró el hito 6 y el módulo ya corre en `Scene_Game`.
 
 Dos grafos distintos, y conviene no mezclarlos:
 
@@ -365,12 +374,16 @@ Ninguna flecha es una referencia entre assemblies: todas son publicaciones en el
 no sabe quién miraba, `Npcs` no sabe qué opina nadie de nadie, `Gossip` no sabe que existe una tienda
 y `Shop` no sabe cómo se propagó el rumor.
 
-De las nueve flechas, **ocho no existen hoy**. La que sí funciona es la última, `Save → HUD` por
-`OnProgressChanged`, y funciona porque viene del ciclo de recolección heredado, no del chisme. El
+De las nueve flechas, **ocho siguen sin existir en una partida**. La que funciona es la última,
+`Save → HUD` por `OnProgressChanged`, que viene del ciclo de recolección heredado y no del chisme. El
 diagrama es el destino y no el estado: faltan los tres módulos que emiten o reciben las otras, y los
 cinco eventos de la tienda y las acciones que aún no se han definido en `Core` porque nada los
-publicaría. Lo que sí existe es el extremo de `Gossip`, que ya sabe emitir `OnRelationshipChanged` y
-`OnRumorSpread` y ya sabe recibir `OnActionWitnessed`, probado contra sinks en EditMode.
+publicaría.
+
+Lo que cambió con el hito 6 es el extremo de `Gossip`, que ya no es solo un contrato probado: hay un
+`GossipManager` vivo en la escena que recibe `OnActionWitnessed` de verdad y emite
+`OnRelationshipChanged` y `OnRumorSpread` de verdad, comprobado de extremo a extremo en PlayMode. Las
+flechas `Npcs → Gossip` y `Gossip → Save` tienen ya su mitad de `Gossip` construida y esperando.
 
 ### La consecuencia de R3: el estado se empuja, no se tira
 

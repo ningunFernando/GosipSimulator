@@ -608,6 +608,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1215654931}
+  - component: {fileID: 1215654932}
   m_Layer: 0
   m_Name: SocialGraph
   m_TagString: Untagged
@@ -630,6 +631,27 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1215654932
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1215654930}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa8d426e0a284a268e0bfd65937167ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: GosipSimulator.Gossip::GosipSimulator.Gossip.GossipManager
+  _config: {fileID: 11400000, guid: f1f28f4843ddf4c998d30d926a8c0e9d, type: 2}
+  _npcs:
+  - {fileID: 11400000, guid: 66f22f8ea2d784111ac31e3b2257281a, type: 2}
+  - {fileID: 11400000, guid: 9dac32cd456964919969fc284aae3cdc, type: 2}
+  - {fileID: 11400000, guid: 70e38c6d4e09648b9b14c0682dbc163c, type: 2}
+  - {fileID: 11400000, guid: 42654cb2d34384d9a993a3e044c71754, type: 2}
+  _actions:
+  - {fileID: 11400000, guid: b7312d7d6c44942d9b763ce36f5bfccb, type: 2}
+  - {fileID: 11400000, guid: 1426c019560354a5b8b4290e077c25da, type: 2}
 --- !u!1 &1300990130
 GameObject:
   m_ObjectHideFlags: 0

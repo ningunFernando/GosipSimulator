@@ -33,10 +33,10 @@ pool de objetos, guardado en tres capas con migraciones, jugador 3D con `Rigidbo
 recolección y el HUD de desarrollo. También las 14 reglas y el motivo de cada una, que viene de la
 auditoría de HamsterBall.
 
-**Lo específico del juego ya empezó, pero todavía no se ejecuta.** Existe la capa de dominio del chisme
-con 75 tests, y existe la configuración de la aldea en `Data`. No existe ningún adapter que la ponga en
-marcha en una escena, así que al arrancar el juego sigue pasando lo mismo que en la plantilla. El detalle
-y lo que falta están en [Estado](#estado).
+**Lo específico del juego ya se ejecuta, pero todavía nadie lo dispara.** Existe la capa de dominio del
+chisme, la configuración de la aldea en `Data`, y desde el hito 6 el `GossipManager` que las monta en
+`Scene_Game`. Lo que falta es quien publique `OnActionWitnessed`: hasta que exista `Npcs`, la aldea
+nunca se entera de nada. El detalle y lo que falta están en [Estado](#estado).
 
 ## Placeholders
 
@@ -52,47 +52,55 @@ grafías de la misma palabra en la misma ruta. No rompe nada, pero conviene eleg
 ## Estado
 
 **Hecho y verificado.** El fork y el renombrado completo (`778fff6`), la documentación reescrita para
-este proyecto (`bc03fb4`), y la capa de dominio del chisme (`99acc35` y `fc30717`). Medido el
-2026-09-19 con el Editor abierto y el CLI de Unity MCP:
+este proyecto (`bc03fb4`), la capa de dominio del chisme (`99acc35` y `fc30717`), y el hito 6: el
+adapter `GossipManager` y su cableado en `Scene_Game`. Medido el 2026-09-20 con el Editor abierto y el
+CLI de Unity MCP:
 
 | Suite | Tests | Errores en consola | Warnings |
 |---|---|---|---|
 | EditMode | 145 en verde | 6 | 7 |
-| PlayMode | 12 en verde | 5 | 0 |
+| PlayMode | 18 en verde | 6 | 0 |
 
-Los 6 y los 5 errores son los esperados: cada test de un caso de error declara su mensaje con
-`LogAssert.Expect`. Los 7 warnings vienen de `ObjectPoolManagerTests` y `EventBusTests`, que ejercitan
-a propósito las ramas de aviso (`TestPool`, `TestEvent`). Cero warnings del compilador.
+Los 6 y los 6 errores son los esperados: cada test de un caso de error declara su mensaje con
+`LogAssert.Expect`. El que subió el número de PlayMode de 5 a 6 es
+`AnActionWithNoDefinition_IsRejectedWithAnErrorAndMovesNobody`. Los 7 warnings vienen de
+`ObjectPoolManagerTests` y `EventBusTests`, que ejercitan a propósito las ramas de aviso (`TestPool`,
+`TestEvent`). Cero warnings del compilador.
 
-De los 145, **70 son heredados de la plantilla y 75 son del chisme**: 29 de `RelationshipGraph`, 22 de
-`RumorPropagator` y 24 de `GossipService`.
+De los 145 de EditMode, **70 son heredados de la plantilla y 75 son del chisme**: 29 de
+`RelationshipGraph`, 22 de `RumorPropagator` y 24 de `GossipService`. De los 18 de PlayMode, **12 son
+heredados y 6 son del chisme**, los seis en `GossipFlowTests`.
 
-**Del chisme existe la capa de dominio, y solo eso.** En `Runtime/Gosip/`, cuatro tipos con la forma de
-tres capas que ya usan `Save` y `Pickups`: `RelationshipGraph` y `SocialGraph` son datos puros,
-`RumorPropagator` planea el recorrido como datos, y `GossipService` muta y publica. En `Data`, cuatro
-tipos de configuración (`SocialTie`, `NpcDefinitionSO`, `GossipConfigSO`, `ActionDefinitionSO`) y siete
-assets: cuatro NPCs en `SO/NPCS/`, más `Robbery`, `Action_Help` y `NewGossipConfig`. La aldea es una
-cadena conectada: `son → blacksmith@90 → villager@50 → elder@40`.
+**Del chisme existe la capa de dominio y su adapter.** En `Runtime/Gosip/`, cinco tipos con la forma de
+cuatro capas que ya usan `Save` y `Pickups`: `RelationshipGraph` y `SocialGraph` son datos puros,
+`RumorPropagator` planea el recorrido como datos, `GossipService` muta y publica, y `GossipManager` es
+el `MonoBehaviour` fino que construye el servicio desde los assets, se suscribe al bus y llama a `Tick`.
+En `Data`, cuatro tipos de configuración (`SocialTie`, `NpcDefinitionSO`, `GossipConfigSO`,
+`ActionDefinitionSO`) y siete assets: cuatro NPCs en `SO/NPCS/`, más `Robbery`, `Action_Help` y
+`NewGossipConfig`. La aldea es una cadena conectada: `son → blacksmith@90 → villager@50 → elder@40`.
 
-**Nada de eso se ejecuta en una partida todavía.** No hay ningún `MonoBehaviour` que construya un
-`GossipService`, nadie publica `OnActionWitnessed`, y nadie escucha `OnRelationshipChanged` fuera de los
-tests. Es la regla del repo ("todo lo que se escribe tiene un call site y un test que lo ejecuta") a
-medio cumplir: los tests están, el call site llega en el hito 6. **Mientras no exista, el chisme es
-código que nunca corre, que es exactamente el defecto central de HamsterBall.** Cerrarlo es lo siguiente.
+**El call site ya existe, y eso era el hito 6.** `GossipManager` vive en el objeto `SocialGraph` de
+`Scene_Game` con los siete assets asignados, y `GossipFlowTests` comprueba en una escena real que un
+`OnActionWitnessed` mueve al testigo, que el rumor llega al herrero y al aldeano y muere antes del
+anciano, que la pausa lo detiene a medio camino, y que `Restore` no publica. La regla del repo ("todo lo
+que se escribe tiene un call site y un test que lo ejecuta") vuelve a cumplirse.
+
+**Lo que todavía no ocurre es que alguien publique `OnActionWitnessed`.** El servicio escucha y su
+`Tick` corre, pero sin `Npcs` nadie presencia nada, así que en una partida la aldea no se entera. Eso es
+el hito 8, no un defecto del 6: el dominio ya no es código que nunca corre.
 
 **Lo que falta, en orden.** Cada hito es verificable por sí solo.
 
 | # | Hito | Qué desbloquea |
 |---|---|---|
-| 6 | `GossipManager` en `Runtime/Gosip/` + objeto en `Scene_Game` | Que el dominio exista en una partida. Hay un GameObject `SocialGraph` vacío ya creado, sin componentes |
 | 7 | `SaveData` v2, `RelationshipRow`, migración `[1]`, y `SaveSystem` escuchando `OnRelationshipChanged` y publicando `OnRelationshipsRestored` | Que las opiniones sobrevivan a una sesión |
 | 8 | Assembly `Npcs`: `Npc`, `PerceptionResolver`, `NpcRegistry` | Que alguien presencie algo y publique `OnActionWitnessed` |
 | 9 | Assembly `Actions`: `Interactable`, `ActionCatalog`, `InteractionReader`, y la acción `Interact` en `InputSystem_Actions` | Que el jugador pueda robar |
 | 10 | Assembly `Shop`: `PricingPolicy`, `Shopkeeper`, y los cinco eventos que faltan | Que el herrero cobre más o se niegue |
 | 11 | `DebugHudModel` y `DebugHud` mostrando la opinión | Verlo funcionar sin depurador |
 
-Los hitos 6 y 7 son los que cierran el ciclo mínimo demostrable por tests. Del 8 al 11 es lo que lo
-hace jugable.
+El hito 6 está hecho. El 7 es el que cierra el ciclo mínimo demostrable por tests. Del 8 al 11 es lo
+que lo hace jugable.
 
 ## Decisiones tomadas
 
@@ -170,17 +178,38 @@ Qwen Code para que cargue. La skill se copió de `~/.claude/skills/isuzu-unity-c
 no se pudo comprobar si la plantilla tenía cambios sin commitear, y un clon solo captura lo
 commiteado. Sí pasó `git clone <ruta de fuera> <destino dentro>`.
 
-**Una corrida de PlayMode con 0 tests no es verde.** Las *Enter Play Mode Options* están activadas (sin
-recarga de dominio), y después de entrar en Play con `play_mode_play` las corridas de PlayMode no
-encuentran ningún test hasta la siguiente recarga. Forzarla:
+**Una corrida de PlayMode con 0 tests no es verde.** Las *Enter Play Mode Options* están activadas con
+`DisableDomainReload` y `DisableSceneReload`, y con eso el descubrimiento de tests de PlayMode devuelve
+una lista vacía. La respuesta es `status: completed`, `passed: 0`, `durationSeconds` del orden de 1e-06.
+
+**Corregido el 2026-09-20: forzar la recarga de dominio no basta.** Lo que este archivo decía era
+`EditorUtility.RequestScriptReload()`, y ya no funciona, si es que alguna vez fue eso lo que lo
+arreglaba. Se probó tres veces seguidas y las tres dieron 0 tests, incluida una corrida que tardó 7
+segundos de reloj, o sea que el runner sí entró en Play y aun así no encontró nada. Lo que funciona es
+apagar la opción, correr, y volver a encenderla:
 
 ```bash
 /Users/ningunfernando/.local/bin/isuzu-unity-cli call execute_code --project GosipSimulator \
-  --json '{"code":"EditorUtility.RequestScriptReload(); return \"ok\";"}'
+  --json '{"code":"EditorSettings.enterPlayModeOptionsEnabled = false; return \"off\";"}'
 ```
 
-Lo volvió a hacer el 2026-09-19: una corrida de EditMode reportó `passed: 1` en 4 ms. Tras forzar la
-recarga, 145. **La cuenta de tests es la única señal fiable**, y el síntoma no es siempre 0.
+```bash
+/Users/ningunfernando/.local/bin/isuzu-unity-cli call execute_code --project GosipSimulator \
+  --json '{"code":"EditorSettings.enterPlayModeOptionsEnabled = true; EditorSettings.enterPlayModeOptions = EnterPlayModeOptions.DisableDomainReload | EnterPlayModeOptions.DisableSceneReload; return \"on\";"}'
+```
+
+Con la opción apagada, las 18 de PlayMode pasan en unos 6 segundos.
+
+**Restaurar el valor es parte del procedimiento, y hay que comprobarlo en disco.** Apagar la opción
+reescribe `ProjectSettings/EditorSettings.asset` con `m_EnterPlayModeOptions: 0` en el acto; volver a
+encenderla en memoria **no** vuelve a escribir el archivo, así que el repo se queda con la opción
+apagada aunque el Editor la muestre encendida. El valor bueno es `3`. Comprobar con `git diff
+ProjectSettings/` y, si hace falta, `git checkout -- ProjectSettings/EditorSettings.asset`, que es
+seguro porque el estado en memoria ya es el correcto.
+
+El síntoma hermano en EditMode sigue existiendo: el 2026-09-19 una corrida reportó `passed: 1` en 4 ms,
+y tras forzar la recarga, 145. **La cuenta de tests es la única señal fiable**, y el síntoma no es
+siempre 0.
 
 **`verify --test` puede morir con `server_stopped` y no es un fallo del Editor.** `verify` fuerza una
 recompilación, la recompilación provoca una recarga de dominio, y la recarga tira el servidor MCP con la
@@ -323,17 +352,22 @@ placeholders. Si diverge de la de HamsterBall, da igual, ninguna se va a volver 
 3. **No se pudo comprobar si la plantilla tenía cambios sin commitear** en el momento del fork, por el
    guard del shell. `git -C ../Unity/DecoupledTemplate status` desde fuera de esta sesión lo resuelve.
    Si había algo, este fork no lo tiene.
-4. **Construir el resto del chisme: hitos 6 a 11.** La capa de dominio y la configuración ya están
-   (`Gossip` con sus cuatro tipos, `Data` con los suyos, 75 tests). Falta todo lo que hace que exista en
-   una partida: `GossipManager`, `SaveData` v2 con su migración, y las assemblies `Npcs`, `Actions` y
-   `Shop`. El orden está en la tabla de [Estado](#estado) y el diseño en `ARCHITECTURE.md`. **El hito 6
-   es el urgente**, porque hasta entonces `GossipService` no tiene ningún call site fuera de los tests.
-5. **Cabos sueltos de autoría en los assets.** Baratos hoy, caros en cuanto algo los referencie:
-   - `NewGossipConfig.asset` conserva el nombre por defecto del `CreateAssetMenu`. Nada lo referencia
-     todavía; cuando `GossipManager` lo tenga asignado, renombrarlo es un `MoveAsset` desde el Editor.
+4. **Construir el resto del chisme: hitos 7 a 11.** El hito 6 se cerró el 2026-09-20: `Gossip` tiene sus
+   cinco tipos, `Data` los suyos, y hay 75 tests de EditMode más 6 de PlayMode. Falta `SaveData` v2 con
+   su migración y las assemblies `Npcs`, `Actions` y `Shop`. El orden está en la tabla de
+   [Estado](#estado) y el diseño en `ARCHITECTURE.md`. **El hito 8 es el que más cambia lo que se ve al
+   jugar**, porque es el que hace que alguien presencie algo; el 7 es el que hace que lo presenciado
+   sobreviva a cerrar el juego.
+5. **Cabos sueltos de autoría en los assets.** Uno de ellos acaba de encarecerse:
+   - `NewGossipConfig.asset` conserva el nombre por defecto del `CreateAssetMenu`, y desde el hito 6
+     **ya está referenciado** por el `GossipManager` de `Scene_Game`. Renombrarlo sigue siendo barato,
+     pero ahora hay que hacerlo con `MoveAsset` desde el Editor, que conserva el GUID; renombrar el
+     archivo desde fuera rompe la referencia de la escena.
    - `Robbery` lleva `baseDelta: -10`, y con `decayPercentPerHop: 40` el rumor llega al herrero en -5 y
      al aldeano en -1, y muere antes del anciano. Para que cruce la aldea hace falta cerca de -50, o
      bajar el decaimiento. Es una decisión de diseño, no un fallo, pero conviene tomarla a propósito.
+     Ojo: `GossipFlowTests` afirma esos tres números, así que retocar el asset hace fallar el test, que
+     es justo lo que se quiere de un valor que la documentación publica.
    - El `id` de una acción se escribe en `save.json` como `reason` de cada opinión que causa. Hoy es
      `robbery`. Cambiarlo después deja los saves viejos apuntando a una acción que ya no existe.
    - La carpeta `Runtime/Gosip/` contra la assembly `GosipSimulator.Gossip`, y `BlackSmith's Son` con S

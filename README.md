@@ -11,16 +11,17 @@ arranca los sistemas en un orden verificable. De ahí se heredan el andamiaje y 
 plantilla nace a su vez de la auditoría de un proyecto anterior (HamsterBall), y cada regla evita un
 fallo que ocurrió allí.
 
-**Estado (2026-09-19).** El fork está hecho y renombrado de punta a punta, y la documentación ya
-describe este proyecto y no la plantilla. Del chisme existe **la capa de dominio y su configuración**,
-con 75 tests propios: el grafo de opiniones, el grafo social, la propagación de rumores y el servicio
-que publica, más los ScriptableObjects y los assets de la aldea. Las dos suites pasan, 145 en EditMode y
-12 en PlayMode.
+**Estado (2026-09-20).** El fork está hecho y renombrado de punta a punta, y la documentación ya
+describe este proyecto y no la plantilla. Del chisme existe **la capa de dominio, su configuración y el
+adapter que la arranca**: el grafo de opiniones, el grafo social, la propagación de rumores, el servicio
+que publica, los ScriptableObjects, los assets de la aldea y el `GossipManager` que lo monta todo en
+`Scene_Game`. Las dos suites pasan, 145 en EditMode y 18 en PlayMode.
 
-**Pero nada de eso corre en una partida todavía.** Falta el adapter que lo ponga en marcha dentro de una
-escena, así que al jugar sigue ocurriendo lo mismo que en la plantilla: arranque, pausa, guardado,
-movimiento, recolección y HUD. La sección [El sistema de chisme](#el-sistema-de-chisme) separa lo que
-existe de lo que falta.
+**El chisme ya corre en una partida, pero todavía nadie lo dispara.** El hito 6 cerró el call site que
+faltaba: al entrar en juego existe un `GossipService` de verdad, construido desde los assets, que recibe
+avistamientos del bus y mueve los rumores en tiempo de juego. Lo que no existe todavía es quien publique
+`OnActionWitnessed`, así que al jugar sigue ocurriendo lo mismo que en la plantilla hasta que llegue
+`Npcs`. La sección [El sistema de chisme](#el-sistema-de-chisme) separa lo que existe de lo que falta.
 
 | Documento | Para qué sirve |
 |---|---|
@@ -101,15 +102,17 @@ Desde la terminal, con el Editor abierto:
 La ruta absoluta no es manía: `~/.local/bin` no está en el PATH de un shell no interactivo en esta
 máquina. Ver [Unity MCP](#unity-mcp).
 
-Medido el 2026-09-19 en este repo, con el Editor abierto y el CLI de Unity MCP:
+Medido el 2026-09-20 en este repo, con el Editor abierto y el CLI de Unity MCP:
 
 | Suite | Tests | Errores esperados en consola | Warnings |
 |---|---|---|---|
 | EditMode | 145 en verde | 6 | 7 |
-| PlayMode | 12 en verde | 5 | 0 |
+| PlayMode | 18 en verde | 6 | 0 |
 
-De los 145, **70 vienen de la plantilla y 75 son del chisme**: 29 de `RelationshipGraph`, 22 de
-`RumorPropagator` y 24 de `GossipService`.
+De los 145 de EditMode, **70 vienen de la plantilla y 75 son del chisme**: 29 de `RelationshipGraph`,
+22 de `RumorPropagator` y 24 de `GossipService`. De los 18 de PlayMode, **12 vienen de la plantilla y 6
+son del chisme**, todos en `GossipFlowTests`. El sexto error esperado de PlayMode es de ese archivo: el
+test que comprueba que una acción sin definición se rechaza declara su mensaje con `LogAssert.Expect`.
 
 Los errores son intencionados: cada test que prueba un caso de error declara el mensaje con
 `LogAssert.Expect` y falla si no aparece. `verify` los cuenta igualmente porque solo lee la consola, no
@@ -134,8 +137,9 @@ La alternativa es lanzar y sondear por separado:
 acepta `mode`**: pasarle uno no da error, da una respuesta vacía que se lee como "no hay resultados". El
 campo de estado es `status`, con `running` y `completed`.
 
-Y si la cuenta sale absurda (1 test en 4 ms), forzar la recarga de dominio: con las *Enter Play Mode
-Options* activadas, el descubrimiento de tests se queda vacío hasta la siguiente recarga.
+Y si la cuenta sale absurda (1 test en 4 ms, o 0 en PlayMode), el descubrimiento de tests se ha quedado
+vacío por las *Enter Play Mode Options*. Ver [Una corrida de PlayMode con 0 tests no es
+verde](#dos-trampas-al-correr-tests-desde-la-terminal).
 
 **Los tests no tocan tu partida guardada.** Los de PlayMode leen el save real al arrancar, pero el que
 comprueba que pausar escribe el archivo lo redirige antes a una carpeta temporal.
@@ -149,14 +153,28 @@ cuenta de tests y los nombres de las fixtures, nunca el exit code. Las corridas 
 con el Editor abierto y el CLI, que sí las ejecuta.
 
 **Una corrida de PlayMode con 0 tests no es verde.** El proyecto tiene activadas las *Enter Play Mode
-Options* (sin recarga de dominio), y después de entrar en Play con `isuzu-unity-cli call
-play_mode_play` las corridas de PlayMode no encuentran ningún test hasta la siguiente recarga de
-dominio. Basta con recompilar o con forzar la recarga:
+Options* con `DisableDomainReload` y `DisableSceneReload`, y con eso el descubrimiento de tests de
+PlayMode devuelve una lista vacía. La corrida responde `status: completed` con `passed: 0` y una
+duración del orden de microsegundos, que es la firma de que no se ejecutó nada.
+
+**Forzar la recarga de dominio no basta, aunque antes lo pareciera.** Comprobado el 2026-09-20: tres
+corridas seguidas tras `EditorUtility.RequestScriptReload()` siguieron dando 0 tests, incluida una que
+tardó 7 segundos de reloj. Lo que sí funciona es apagar la opción, correr y volver a encenderla:
 
 ```bash
 /Users/ningunfernando/.local/bin/isuzu-unity-cli call execute_code --project GosipSimulator \
-  --json '{"code":"EditorUtility.RequestScriptReload(); return \"ok\";"}'
+  --json '{"code":"EditorSettings.enterPlayModeOptionsEnabled = false; return \"off\";"}'
 ```
+
+```bash
+/Users/ningunfernando/.local/bin/isuzu-unity-cli call execute_code --project GosipSimulator \
+  --json '{"code":"EditorSettings.enterPlayModeOptionsEnabled = true; EditorSettings.enterPlayModeOptions = EnterPlayModeOptions.DisableDomainReload | EnterPlayModeOptions.DisableSceneReload; return \"on\";"}'
+```
+
+Con la opción apagada, las 18 pasan en unos 6 segundos. **Restaurar el valor es parte del
+procedimiento**, y hay que comprobarlo en disco además de en memoria: apagar la opción reescribe
+`ProjectSettings/EditorSettings.asset` con `m_EnterPlayModeOptions: 0`, y volver a encenderla en memoria
+no vuelve a escribir el archivo en el acto. El valor bueno es `3`; `git diff ProjectSettings/` lo dice.
 
 ## Cómo se hizo el fork y el renombrado
 
@@ -246,7 +264,7 @@ existe; las otras tres no.
 
 | Assembly | De qué es dueña | Estado |
 |---|---|---|
-| `GosipSimulator.Gossip` | Opiniones, grafo social y propagación de rumores | Dominio hecho, falta el adapter |
+| `GosipSimulator.Gossip` | Opiniones, grafo social y propagación de rumores | Completa: dominio y adapter |
 | `GosipSimulator.Npcs` | Identidad de los NPCs y percepción: quién presenció qué | No existe |
 | `GosipSimulator.Actions` | Los verbos del jugador. Valida y publica, no interpreta | No existe |
 | `GosipSimulator.Shop` | Las condiciones del herrero: multiplicador de precio y negativa | No existe |
@@ -261,6 +279,7 @@ En `Runtime/Gosip/`, con la forma de tres capas que ya usan `Save` y `Pickups`:
 | `SocialGraph` | datos puros | Quién confía en quién. Inmutable y con los lazos ordenados, para que el recorrido sea determinista |
 | `RumorPropagator` | dominio puro | Planea todo el recorrido en anchura y lo devuelve como datos. Cada NPC se entera una vez y por el camino más corto |
 | `GossipService` | dominio | Dueño del grafo de opiniones. Convierte un avistamiento en deltas, encola los saltos y los libera con `Tick` en tiempo de juego |
+| `GossipManager` | adapter | Construye el servicio desde los SO en `Awake`, se suscribe al bus en `OnEnable` y llama a `Tick(Time.deltaTime)` en `Update`. Resuelve el `actionId` del evento a su delta base, porque `Gossip` no puede referenciar `Actions` (R3) |
 
 En `Data`: `SocialTie`, `NpcDefinitionSO`, `GossipConfigSO` y `ActionDefinitionSO`, más siete assets. La
 aldea es una cadena conectada: `son → blacksmith@90 → villager@50 → elder@40`.
@@ -269,18 +288,23 @@ En `Core`, cuatro eventos: `OnActionWitnessed`, `OnRelationshipChanged`, `OnRumo
 `OnRelationshipsRestored`. Los cinco de la tienda y las acciones no están, a propósito: nada los
 publicaría ni los escucharía todavía (R12).
 
-75 tests de EditMode cubren todo eso.
+75 tests de EditMode cubren el dominio, y 6 de PlayMode cubren el adapter dentro de una escena real.
 
-**Y nada de eso se ejecuta en una partida.** No hay ningún `MonoBehaviour` que construya un
-`GossipService`, nadie publica `OnActionWitnessed`, y nadie escucha `OnRelationshipChanged` fuera de los
-tests. Es código probado y sin call site, que es justo lo que la guía prohíbe; el hito 6 existe para
-cerrarlo.
+El `GossipManager` vive en el objeto `SocialGraph` de `Scene_Game`, con los siete assets asignados. Si
+algo de esa configuración falta o no cuadra, el componente registra el motivo concreto y se deshabilita
+en vez de quedarse a medio construir (R9). Entre las comprobaciones hay una que no es obvia: un lazo que
+apunte a un id que ningún `NpcDefinitionSO` declara se rechaza, porque `SocialGraph` crearía el nodo
+igual y los rumores viajarían a un NPC fantasma sin que nada lo dijera.
+
+**Lo que todavía no ocurre es que alguien publique `OnActionWitnessed`.** El servicio existe, escucha y
+tiene su `Tick` corriendo, pero hasta que exista `Npcs` nadie presencia nada, así que en una partida la
+aldea no se entera de nada. La diferencia con antes del hito 6 es real y es la que importa: el código ya
+no es un dominio sin call site, que es el defecto central de HamsterBall.
 
 ### Lo que falta
 
 | # | Hito |
 |---|---|
-| 6 | `GossipManager`, el adapter: construye el servicio desde los SO en `Awake`, se suscribe en `OnEnable`, y llama a `Tick(Time.deltaTime)` en `Update` |
 | 7 | `SaveData` v2 con `RelationshipRow`, la migración `[1]`, y `SaveSystem` escuchando `OnRelationshipChanged` y publicando `OnRelationshipsRestored` |
 | 8 | `Npcs`: `Npc`, `PerceptionResolver`, `NpcRegistry` |
 | 9 | `Actions`: `Interactable`, `ActionCatalog`, `InteractionReader`, y la acción `Interact` en `InputSystem_Actions` |
