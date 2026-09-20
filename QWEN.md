@@ -33,31 +33,66 @@ pool de objetos, guardado en tres capas con migraciones, jugador 3D con `Rigidbo
 recolección y el HUD de desarrollo. También las 14 reglas y el motivo de cada una, que viene de la
 auditoría de HamsterBall.
 
-**Lo específico del juego no existe todavía.** Ni una línea de chisme, ni relaciones, ni NPCs, ni
-tienda. Quien lea este repo esperando encontrar el simulador va a encontrar la plantilla renombrada.
+**Lo específico del juego ya empezó, pero todavía no se ejecuta.** Existe la capa de dominio del chisme
+con 75 tests, y existe la configuración de la aldea en `Data`. No existe ningún adapter que la ponga en
+marcha en una escena, así que al arrancar el juego sigue pasando lo mismo que en la plantilla. El detalle
+y lo que falta están en [Estado](#estado).
 
 ## Placeholders
 
-`{Project}` = `{ROOT_NS}` = `{ASM}` = **`GosipSimulator`**. Las 8 assemblies son
-`GosipSimulator.{Core,Data,Player,Save,Pickups,Debug,Tests.EditMode,Tests.PlayMode}` y el
-`rootNamespace` de cada una coincide con su nombre, salvo las dos de tests, que comparten
-`GosipSimulator.Tests`.
+`{Project}` = `{ROOT_NS}` = `{ASM}` = **`GosipSimulator`**. Hoy hay **9** assemblies, no las 8 de la
+plantilla: `GosipSimulator.{Core,Data,Player,Save,Pickups,Gossip,Debug,Tests.EditMode,Tests.PlayMode}`.
+El `rootNamespace` de cada una coincide con su nombre, salvo las dos de tests, que comparten
+`GosipSimulator.Tests`. Las tres de gameplay que faltan (`Npcs`, `Actions`, `Shop`) entran como hojas
+iguales que `Gossip`, referenciando solo `Core` y `Data`, y habrá que actualizar esta cuenta.
+
+Ojo con un detalle: la carpeta se llama `Runtime/Gosip/` y la assembly `GosipSimulator.Gossip`. Dos
+grafías de la misma palabra en la misma ruta. No rompe nada, pero conviene elegir una.
 
 ## Estado
 
-**Hecho y verificado (2026-09-17).** El fork y el renombrado completo, en el commit `778fff6`. Las dos
-suites en verde con el Editor abierto y el CLI de Unity MCP:
+**Hecho y verificado.** El fork y el renombrado completo (`778fff6`), la documentación reescrita para
+este proyecto (`bc03fb4`), y la capa de dominio del chisme (`99acc35` y `fc30717`). Medido el
+2026-09-19 con el Editor abierto y el CLI de Unity MCP:
 
-| Suite | Tests | Errores en consola | Compilado |
+| Suite | Tests | Errores en consola | Warnings |
 |---|---|---|---|
-| EditMode | 70 en verde | 6 | 0 errores, 7.3 s |
-| PlayMode | 12 en verde | 5 | 0 errores, 3.1 s |
+| EditMode | 145 en verde | 6 | 7 |
+| PlayMode | 12 en verde | 5 | 0 |
 
-Los errores de la consola son los esperados: cada test de un caso de error declara su mensaje con
-`LogAssert.Expect`. Cero warnings. Cero `error CS` también en la compilación por lote previa.
+Los 6 y los 5 errores son los esperados: cada test de un caso de error declara su mensaje con
+`LogAssert.Expect`. Los 7 warnings vienen de `ObjectPoolManagerTests` y `EventBusTests`, que ejercitan
+a propósito las ramas de aviso (`TestPool`, `TestEvent`). Cero warnings del compilador.
 
-**Por hacer.** Todo el gameplay. El diseño acordado está en la última sección de `ARCHITECTURE.md` y en
-el `README.md`, en ambos sitios marcado como planeado.
+De los 145, **70 son heredados de la plantilla y 75 son del chisme**: 29 de `RelationshipGraph`, 22 de
+`RumorPropagator` y 24 de `GossipService`.
+
+**Del chisme existe la capa de dominio, y solo eso.** En `Runtime/Gosip/`, cuatro tipos con la forma de
+tres capas que ya usan `Save` y `Pickups`: `RelationshipGraph` y `SocialGraph` son datos puros,
+`RumorPropagator` planea el recorrido como datos, y `GossipService` muta y publica. En `Data`, cuatro
+tipos de configuración (`SocialTie`, `NpcDefinitionSO`, `GossipConfigSO`, `ActionDefinitionSO`) y siete
+assets: cuatro NPCs en `SO/NPCS/`, más `Robbery`, `Action_Help` y `NewGossipConfig`. La aldea es una
+cadena conectada: `son → blacksmith@90 → villager@50 → elder@40`.
+
+**Nada de eso se ejecuta en una partida todavía.** No hay ningún `MonoBehaviour` que construya un
+`GossipService`, nadie publica `OnActionWitnessed`, y nadie escucha `OnRelationshipChanged` fuera de los
+tests. Es la regla del repo ("todo lo que se escribe tiene un call site y un test que lo ejecuta") a
+medio cumplir: los tests están, el call site llega en el hito 6. **Mientras no exista, el chisme es
+código que nunca corre, que es exactamente el defecto central de HamsterBall.** Cerrarlo es lo siguiente.
+
+**Lo que falta, en orden.** Cada hito es verificable por sí solo.
+
+| # | Hito | Qué desbloquea |
+|---|---|---|
+| 6 | `GossipManager` en `Runtime/Gosip/` + objeto en `Scene_Game` | Que el dominio exista en una partida. Hay un GameObject `SocialGraph` vacío ya creado, sin componentes |
+| 7 | `SaveData` v2, `RelationshipRow`, migración `[1]`, y `SaveSystem` escuchando `OnRelationshipChanged` y publicando `OnRelationshipsRestored` | Que las opiniones sobrevivan a una sesión |
+| 8 | Assembly `Npcs`: `Npc`, `PerceptionResolver`, `NpcRegistry` | Que alguien presencie algo y publique `OnActionWitnessed` |
+| 9 | Assembly `Actions`: `Interactable`, `ActionCatalog`, `InteractionReader`, y la acción `Interact` en `InputSystem_Actions` | Que el jugador pueda robar |
+| 10 | Assembly `Shop`: `PricingPolicy`, `Shopkeeper`, y los cinco eventos que faltan | Que el herrero cobre más o se niegue |
+| 11 | `DebugHudModel` y `DebugHud` mostrando la opinión | Verlo funcionar sin depurador |
+
+Los hitos 6 y 7 son los que cierran el ciclo mínimo demostrable por tests. Del 8 al 11 es lo que lo
+hace jugable.
 
 ## Decisiones tomadas
 
@@ -143,6 +178,40 @@ encuentran ningún test hasta la siguiente recarga. Forzarla:
 /Users/ningunfernando/.local/bin/isuzu-unity-cli call execute_code --project GosipSimulator \
   --json '{"code":"EditorUtility.RequestScriptReload(); return \"ok\";"}'
 ```
+
+Lo volvió a hacer el 2026-09-19: una corrida de EditMode reportó `passed: 1` en 4 ms. Tras forzar la
+recarga, 145. **La cuenta de tests es la única señal fiable**, y el síntoma no es siempre 0.
+
+**`verify --test` puede morir con `server_stopped` y no es un fallo del Editor.** `verify` fuerza una
+recompilación, la recompilación provoca una recarga de dominio, y la recarga tira el servidor MCP con la
+petición en vuelo. La vía que sí funciona es lanzar y sondear por separado:
+
+```bash
+isuzu-unity-cli call test_run     --project GosipSimulator --json '{"mode":"edit"}'
+isuzu-unity-cli call test_results --project GosipSimulator --json '{"limit":20}'
+```
+
+`test_results` no necesita el hilo principal, así que responde mientras la corrida ocupa el Editor, y
+**no acepta `mode`**: sus únicos argumentos son `include_passed` y `limit`. Pasarle `mode` no da un error,
+da una respuesta vacía, que se lee como "no hay resultados". El campo que dice el estado es `status`, con
+valores `running` y `completed`.
+
+**`execute_code` pasa a segundo plano si el hilo principal lleva unos segundos sin correr.** Devuelve un
+`jobId` y un aviso de que no se reintente. La operación suele haber terminado igual: comprobar el
+resultado en disco antes de volver a lanzarla, porque reintentar ejecuta el snippet dos veces y no es
+idempotente. Para snippets largos, `--file <ruta>` en vez de `--json`, que es lo que la propia
+documentación de la tool recomienda cuando el JSON se monta a mano.
+
+**`execute_code` no ve nuestras assemblies.** El snippet se coloca dentro de un cuerpo de método, así que
+no admite `using`, y solo trae `System`, `System.Collections`, `System.Collections.Generic`,
+`System.Linq`, `System.Threading.Tasks`, `UnityEngine` y `UnityEditor`. `GosipSimulator.Data` no está, y
+escribir el nombre completo tampoco compila. La salida es reflexión:
+`Type.GetType("GosipSimulator.Data.NpcDefinitionSO, GosipSimulator.Data")` y luego
+`ScriptableObject.CreateInstance(Type)`, o `AssetDatabase.LoadAssetAtPath<ScriptableObject>` cuando basta
+con el tipo base.
+
+**`AssetDatabase.SaveAssets()` guarda todo lo que esté sucio, incluida la escena abierta.** Útil, y
+peligroso: persiste una edición de escena a medio hacer que nadie había guardado a propósito.
 
 **Un `.cs` nuevo escrito desde fuera del Editor puede quedarse sin compilar y sin ningún aviso.** Le
 pasó a la plantilla con `BootstrapperTests.cs`, creado mientras Unity recargaba el dominio: se importó
@@ -231,10 +300,9 @@ placeholders. Si diverge de la de HamsterBall, da igual, ninguna se va a volver 
 
 ## Pendientes
 
-1. **Falta el remote `origin`, y ahora mismo no queda ningún remote.** Fernando crea el repo
-   `GosipSimulator` en GitHub y pasa la URL; entonces `git remote add origin <url>` y
-   `git push -u origin main`. `gh` no está instalado en esta máquina, así que el repo no se puede
-   crear desde el agente, y el push lo hace Fernando.
+1. **Resuelto el 2026-09-19: `origin` existe.** Fernando creó el repo y empujó. `origin` apunta a
+   `https://github.com/ningunFernando/GosipSimulator.git`. Del remote a la plantilla no queda nada: se
+   quitó a propósito, ver [Origen](#origen). El push lo sigue haciendo Fernando.
 2. **Resuelto el 2026-09-17: `.qwen/settings.json` está commiteado y acotado.** Fernando commiteó en
    `9d8313a` los permisos que la sesión había ido acumulando, y el commit siguiente los acotó. El
    resultado, comparado con lo que traía la plantilla:
@@ -255,10 +323,22 @@ placeholders. Si diverge de la de HamsterBall, da igual, ninguna se va a volver 
 3. **No se pudo comprobar si la plantilla tenía cambios sin commitear** en el momento del fork, por el
    guard del shell. `git -C ../Unity/DecoupledTemplate status` desde fuera de esta sesión lo resuelve.
    Si había algo, este fork no lo tiene.
-4. **Construir el sistema de chisme.** Cuatro assemblies nuevas (`Gossip`, `Npcs`, `Actions`, `Shop`),
-   los eventos en `Core`, los ScriptableObjects en `Data`, `SaveData` v2 con su migración, y los tests.
-   El diseño está en `ARCHITECTURE.md`.
-5. **Control táctil sin decidir.** Si el juego acaba siendo para móvil en vertical, ojo: el
+4. **Construir el resto del chisme: hitos 6 a 11.** La capa de dominio y la configuración ya están
+   (`Gossip` con sus cuatro tipos, `Data` con los suyos, 75 tests). Falta todo lo que hace que exista en
+   una partida: `GossipManager`, `SaveData` v2 con su migración, y las assemblies `Npcs`, `Actions` y
+   `Shop`. El orden está en la tabla de [Estado](#estado) y el diseño en `ARCHITECTURE.md`. **El hito 6
+   es el urgente**, porque hasta entonces `GossipService` no tiene ningún call site fuera de los tests.
+5. **Cabos sueltos de autoría en los assets.** Baratos hoy, caros en cuanto algo los referencie:
+   - `NewGossipConfig.asset` conserva el nombre por defecto del `CreateAssetMenu`. Nada lo referencia
+     todavía; cuando `GossipManager` lo tenga asignado, renombrarlo es un `MoveAsset` desde el Editor.
+   - `Robbery` lleva `baseDelta: -10`, y con `decayPercentPerHop: 40` el rumor llega al herrero en -5 y
+     al aldeano en -1, y muere antes del anciano. Para que cruce la aldea hace falta cerca de -50, o
+     bajar el decaimiento. Es una decisión de diseño, no un fallo, pero conviene tomarla a propósito.
+   - El `id` de una acción se escribe en `save.json` como `reason` de cada opinión que causa. Hoy es
+     `robbery`. Cambiarlo después deja los saves viejos apuntando a una acción que ya no existe.
+   - La carpeta `Runtime/Gosip/` contra la assembly `GosipSimulator.Gossip`, y `BlackSmith's Son` con S
+     mayúscula contra `The Blacksmith`.
+6. **Control táctil sin decidir.** Si el juego acaba siendo para móvil en vertical, ojo: el
    `OnScreenStick` del Input System funciona sobre UGUI, no sobre UI Toolkit, y el HUD es UI Toolkit.
 
 ## Notas para el trabajo siguiente

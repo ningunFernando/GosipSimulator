@@ -11,11 +11,16 @@ arranca los sistemas en un orden verificable. De ahí se heredan el andamiaje y 
 plantilla nace a su vez de la auditoría de un proyecto anterior (HamsterBall), y cada regla evita un
 fallo que ocurrió allí.
 
-**Estado (2026-09-17).** El fork está hecho, renombrado de punta a punta y verificado: compila sin
-errores ni warnings y las dos suites pasan (70 EditMode, 12 PlayMode). Los sistemas de chisme **no
-existen todavía**. Lo que hay hoy en el repo es la plantilla heredada: arranque, pausa, guardado,
-jugador, ciclo de recolección y HUD de desarrollo. La sección [El sistema de chisme](#el-sistema-de-chisme-planeado)
-describe lo que se va a construir, no lo que hay.
+**Estado (2026-09-19).** El fork está hecho y renombrado de punta a punta, y la documentación ya
+describe este proyecto y no la plantilla. Del chisme existe **la capa de dominio y su configuración**,
+con 75 tests propios: el grafo de opiniones, el grafo social, la propagación de rumores y el servicio
+que publica, más los ScriptableObjects y los assets de la aldea. Las dos suites pasan, 145 en EditMode y
+12 en PlayMode.
+
+**Pero nada de eso corre en una partida todavía.** Falta el adapter que lo ponga en marcha dentro de una
+escena, así que al jugar sigue ocurriendo lo mismo que en la plantilla: arranque, pausa, guardado,
+movimiento, recolección y HUD. La sección [El sistema de chisme](#el-sistema-de-chisme) separa lo que
+existe de lo que falta.
 
 | Documento | Para qué sirve |
 |---|---|
@@ -65,6 +70,7 @@ Assets/
 │   ├── Runtime/
 │   │   ├── Core/       GosipSimulator.Core     bootstrap, EventBus, estados y pausa, pool, Log
 │   │   ├── Data/       GosipSimulator.Data     ScriptableObjects de configuración
+│   │   ├── Gosip/      GosipSimulator.Gossip   opiniones, grafo social y propagación de rumores
 │   │   ├── Pickups/    GosipSimulator.Pickups  recolectables sacados del pool
 │   │   ├── Player/     GosipSimulator.Player   input y movimiento
 │   │   └── Save/       GosipSimulator.Save     guardado en tres capas
@@ -95,16 +101,41 @@ Desde la terminal, con el Editor abierto:
 La ruta absoluta no es manía: `~/.local/bin` no está en el PATH de un shell no interactivo en esta
 máquina. Ver [Unity MCP](#unity-mcp).
 
-Medido el 2026-09-17 en este repo, con el Editor abierto y el CLI de Unity MCP:
+Medido el 2026-09-19 en este repo, con el Editor abierto y el CLI de Unity MCP:
 
-| Suite | Tests | Errores esperados en consola |
-|---|---|---|
-| EditMode | 70 en verde | 6 |
-| PlayMode | 12 en verde | 5 |
+| Suite | Tests | Errores esperados en consola | Warnings |
+|---|---|---|---|
+| EditMode | 145 en verde | 6 | 7 |
+| PlayMode | 12 en verde | 5 | 0 |
+
+De los 145, **70 vienen de la plantilla y 75 son del chisme**: 29 de `RelationshipGraph`, 22 de
+`RumorPropagator` y 24 de `GossipService`.
 
 Los errores son intencionados: cada test que prueba un caso de error declara el mensaje con
 `LogAssert.Expect` y falla si no aparece. `verify` los cuenta igualmente porque solo lee la consola, no
-sabe cuáles espera cada test. Si el número no coincide, algo ha cambiado de verdad.
+sabe cuáles espera cada test. Los 7 warnings salen de `ObjectPoolManagerTests` y `EventBusTests`, que
+ejercitan a propósito sus ramas de aviso. Si un número no coincide, algo ha cambiado de verdad.
+
+**Si `verify` muere con `server_stopped`, el Editor está bien.** `verify` fuerza una recompilación, la
+recompilación provoca una recarga de dominio, y la recarga tira el servidor MCP con la petición en vuelo.
+La alternativa es lanzar y sondear por separado:
+
+```bash
+/Users/ningunfernando/.local/bin/isuzu-unity-cli call test_run \
+  --project GosipSimulator --json '{"mode":"edit"}'
+```
+
+```bash
+/Users/ningunfernando/.local/bin/isuzu-unity-cli call test_results \
+  --project GosipSimulator --json '{"limit":20}'
+```
+
+`test_results` responde sin el hilo principal, así que funciona mientras la corrida ocupa el Editor. **No
+acepta `mode`**: pasarle uno no da error, da una respuesta vacía que se lee como "no hay resultados". El
+campo de estado es `status`, con `running` y `completed`.
+
+Y si la cuenta sale absurda (1 test en 4 ms), forzar la recarga de dominio: con las *Enter Play Mode
+Options* activadas, el descubrimiento de tests se queda vacío hasta la siguiente recarga.
 
 **Los tests no tocan tu partida guardada.** Los de PlayMode leen el save real al arrancar, pero el que
 comprueba que pausar escribe el archivo lo redirige antes a una carpeta temporal.
@@ -208,23 +239,57 @@ El CLI y el paquete de Unity salen juntos de la misma versión: aquí los dos en
 otro rompe el emparejamiento, así que `isuzu-unity-cli upgrade` implica cambiar también el tag
 `#v4.3.3` del manifest.
 
-## El sistema de chisme (planeado)
+## El sistema de chisme
 
-No implementado. Es el plan acordado para la primera rebanada, y sirve para que las 14 reglas se
-pueden comprobar contra algo concreto.
+Cuatro assemblies nuevas, todas hoja sobre `Core` y `Data`, y sin referenciarse entre ellas (R3). Una
+existe; las otras tres no.
 
-Cuatro assemblies nuevas, todas hoja sobre `Core` y `Data`, y sin referenciarse entre ellas (R3):
+| Assembly | De qué es dueña | Estado |
+|---|---|---|
+| `GosipSimulator.Gossip` | Opiniones, grafo social y propagación de rumores | Dominio hecho, falta el adapter |
+| `GosipSimulator.Npcs` | Identidad de los NPCs y percepción: quién presenció qué | No existe |
+| `GosipSimulator.Actions` | Los verbos del jugador. Valida y publica, no interpreta | No existe |
+| `GosipSimulator.Shop` | Las condiciones del herrero: multiplicador de precio y negativa | No existe |
 
-| Assembly | De qué es dueña |
+### Lo que ya existe
+
+En `Runtime/Gosip/`, con la forma de tres capas que ya usan `Save` y `Pickups`:
+
+| Tipo | Capa | Qué hace |
+|---|---|---|
+| `RelationshipGraph` | datos puros | Opiniones dirigidas `(npc, acercaDe) → int`, con tope. Disperso: un delta cero no guarda nada |
+| `SocialGraph` | datos puros | Quién confía en quién. Inmutable y con los lazos ordenados, para que el recorrido sea determinista |
+| `RumorPropagator` | dominio puro | Planea todo el recorrido en anchura y lo devuelve como datos. Cada NPC se entera una vez y por el camino más corto |
+| `GossipService` | dominio | Dueño del grafo de opiniones. Convierte un avistamiento en deltas, encola los saltos y los libera con `Tick` en tiempo de juego |
+
+En `Data`: `SocialTie`, `NpcDefinitionSO`, `GossipConfigSO` y `ActionDefinitionSO`, más siete assets. La
+aldea es una cadena conectada: `son → blacksmith@90 → villager@50 → elder@40`.
+
+En `Core`, cuatro eventos: `OnActionWitnessed`, `OnRelationshipChanged`, `OnRumorSpread` y
+`OnRelationshipsRestored`. Los cinco de la tienda y las acciones no están, a propósito: nada los
+publicaría ni los escucharía todavía (R12).
+
+75 tests de EditMode cubren todo eso.
+
+**Y nada de eso se ejecuta en una partida.** No hay ningún `MonoBehaviour` que construya un
+`GossipService`, nadie publica `OnActionWitnessed`, y nadie escucha `OnRelationshipChanged` fuera de los
+tests. Es código probado y sin call site, que es justo lo que la guía prohíbe; el hito 6 existe para
+cerrarlo.
+
+### Lo que falta
+
+| # | Hito |
 |---|---|
-| `GosipSimulator.Gossip` | El grafo de opiniones y la propagación de rumores. Dominio en C# puro (R5) |
-| `GosipSimulator.Npcs` | Identidad de los NPCs y percepción: quién presenció qué |
-| `GosipSimulator.Actions` | Los verbos del jugador. Valida y publica, no interpreta |
-| `GosipSimulator.Shop` | Las condiciones del herrero: multiplicador de precio y negativa |
+| 6 | `GossipManager`, el adapter: construye el servicio desde los SO en `Awake`, se suscribe en `OnEnable`, y llama a `Tick(Time.deltaTime)` en `Update` |
+| 7 | `SaveData` v2 con `RelationshipRow`, la migración `[1]`, y `SaveSystem` escuchando `OnRelationshipChanged` y publicando `OnRelationshipsRestored` |
+| 8 | `Npcs`: `Npc`, `PerceptionResolver`, `NpcRegistry` |
+| 9 | `Actions`: `Interactable`, `ActionCatalog`, `InteractionReader`, y la acción `Interact` en `InputSystem_Actions` |
+| 10 | `Shop`: `PricingPolicy`, `Shopkeeper`, y los cinco eventos que faltan |
+| 11 | El HUD mostrando la opinión |
 
-El recorrido del caso del herrero: el jugador roba y `Actions` publica `OnActionCommitted`; `Npcs`
-resuelve quién estaba al alcance y publica un `OnActionWitnessed` por testigo; `Gossip` aplica el delta
-de opinión y hace viajar el rumor por el grafo social, decayendo por salto y ponderado por confianza;
+El recorrido completo del caso del herrero, cuando exista: el jugador roba y `Actions` publica
+`OnActionCommitted`; `Npcs` resuelve quién estaba al alcance y publica un `OnActionWitnessed` por
+testigo; `Gossip` aplica el delta y hace viajar el rumor decayendo por salto y ponderado por confianza;
 cada cambio publica `OnRelationshipChanged`; `Shop` guarda su propio multiplicador y la próxima compra
 sale más cara o se rechaza.
 
@@ -235,9 +300,23 @@ estado de relaciones se empuja, no se tira. Es el mismo patrón que ya usa `Debu
 desde la configuración en `Awake`, así que ninguno de los dos depende del orden en que se atiendan los
 handlers.
 
-La persistencia encaja en lo que ya hay: `SaveData` pasa a versión 2 con las opiniones, y
-`SaveMigrations` gana el salto de v1 a v2 con su backup (R14).
+### Cómo de lejos llega un rumor
+
+`Carry` aplica la confianza y luego el decaimiento, ambos porcentajes enteros, y la división entera
+trunca hacia cero. Con los lazos de arriba y `decayPercentPerHop: 40`, la distancia que recorre una
+historia depende casi toda de su magnitud inicial:
+
+| `baseDelta` | herrero | aldeano | anciano |
+|---|---|---|---|
+| −10 | −5 | −1 | no se entera |
+| −20 | −10 | −3 | no se entera |
+| −30 | −16 | −4 | no se entera |
+| −50 | −27 | −7 | −1 |
+
+Que un salto se trunque a cero no es un fallo: es lo que hace que un desaire menor no se convierta en
+noticia en toda la aldea. `Robbery` está hoy en −10, así que el rumor muere en el aldeano.
 
 `Pickups` se queda mientras tanto. Es hoy el único consumidor del pool y lo único que hace que
 `SaveSystem` escriba el archivo, y el README de la plantilla avisa de no borrarlo sin reemplazo. Se
 revisará cuando `Shop` y `Gossip` sostengan el ciclo.
+

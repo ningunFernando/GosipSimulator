@@ -16,44 +16,52 @@ fallos auditados en el proyecto de referencia de la plantilla (HamsterBall).
   [`README.md`](../../README.md).
 
 Este documento describe **cómo está hecho el proyecto hoy**, no cómo debería hacerse: donde el repo se
-aparta de la guía, lo dice. Todo lo que cuenta aquí existe y se ejecuta. El sistema de chisme, que es
-la razón de ser del proyecto, **no está implementado**: su diseño va en la última sección y en el
-`README.md`, marcados como planeados.
+aparta de la guía, lo dice. Todo lo que cuenta aquí existe y se ejecuta, con una excepción que se señala
+donde toca: el módulo `Gossip` tiene su capa de dominio completa y probada, pero todavía ningún adapter
+que la ponga en marcha en una escena. Lo que falta del sistema de chisme va en la última sección y en el
+`README.md`.
 
 ## Assemblies
 
-Ocho assemblies. La guía también dibuja ocho, pero no las mismas: aquí no hay `Camera` (fuera del
-alcance acordado) y sí hay `Pickups`, el módulo mínimo que da uso real al pool y al guardado. Todas
-usan el prefijo `GosipSimulator` y su namespace raíz coincide con el nombre de la assembly.
+Nueve assemblies. La guía dibuja ocho y la plantilla traía ocho, pero no las mismas: aquí no hay
+`Camera` (fuera del alcance acordado) y sí hay `Pickups`, el módulo mínimo que da uso real al pool y al
+guardado, y `Gossip`, el primero propio de este juego. Todas usan el prefijo `GosipSimulator` y su
+namespace raíz coincide con el nombre de la assembly.
 
 | Assembly | Referencia | Contenido |
 |---|---|---|
-| `Data` | nada | ScriptableObjects de configuración (`GameConfigSO`) |
+| `Data` | nada | ScriptableObjects de configuración: `GameConfigSO` y, del chisme, `NpcDefinitionSO`, `GossipConfigSO`, `ActionDefinitionSO` y `SocialTie` |
 | `Core` | `Data` | `Log`, `EventBus` y eventos, `GameManager` y estados (pausa incluida), `Bootstrapper`, pool de objetos, contrato `ISaveLifecycle` |
 | `Save` | `Core`, `Data` | Guardado en tres capas; convierte recolecciones en progreso y guarda al pausar |
 | `Player` | `Core`, `Data`, `Unity.InputSystem` | Input (movimiento y pausa) y movimiento del jugador |
 | `Pickups` | `Core`, `Data` | Objetos recolectables que salen del pool y vuelven a él |
+| `Gossip` | `Core`, `Data` | Opiniones entre NPCs y propagación de rumores. Solo la capa de dominio; todavía sin adapter. Vive en `Runtime/Gosip/`, con otra grafía que el nombre de la assembly |
 | `Debug` | `Core`, `Data`, `Player` | HUD de desarrollo. Solo compila con `UNITY_EDITOR \|\| DEVELOPMENT_BUILD` |
-| `Tests.EditMode` | `Core`, `Data`, `Save`, `Player`, `Debug`, `Pickups` | Tests de lógica pura, solo Editor |
-| `Tests.PlayMode` | `Core`, `Data`, `Save`, `Player`, `Debug`, `Pickups`, `Unity.InputSystem` | Tests de extremo a extremo con escenas reales |
+| `Tests.EditMode` | `Core`, `Data`, `Save`, `Player`, `Debug`, `Pickups`, `Gossip` | Tests de lógica pura, solo Editor |
+| `Tests.PlayMode` | `Core`, `Data`, `Save`, `Player`, `Debug`, `Pickups`, `Gossip`, `Unity.InputSystem` | Tests de extremo a extremo con escenas reales |
 
 ```
    Debug              Tests.EditMode / Tests.PlayMode
      │                 (referencian todos los módulos)
      ↓
-   Player          Save          Pickups
-     │               │              │
-     └───────────────┼──────────────┘
-                     ↓
-                   Core
-                     ↓
-                   Data
+   Player        Save       Pickups       Gossip
+     │             │            │            │
+     └─────────────┴──────┬─────┴────────────┘
+                          ↓
+                        Core
+                          ↓
+                        Data
 ```
 
 Reglas del grafo (R3): `Data` no referencia nada del proyecto; `Core` solo a `Data`; los módulos de
-gameplay (`Player`, `Save`, `Pickups`) referencian `Core` y `Data` y **nunca entre sí**; `Debug` y los
-tests son hojas. Cuando un módulo necesita a otro, la respuesta es un evento: `Pickups` no sabe que
-`Save` existe, solo publica `OnPickupCollected`.
+gameplay (`Player`, `Save`, `Pickups`, `Gossip`) referencian `Core` y `Data` y **nunca entre sí**;
+`Debug` y los tests son hojas. Cuando un módulo necesita a otro, la respuesta es un evento: `Pickups` no
+sabe que `Save` existe, solo publica `OnPickupCollected`.
+
+Una consecuencia que ya se nota en el chisme: el `.asmdef` de `Gossip` referencia `Core` y `Data` **por
+GUID**, mientras que los ocho heredados lo hacen por nombre y los dos de tests referencian `Gossip` por
+nombre. Las dos formas funcionan. La diferencia práctica es que un renombrado de `Gossip` obliga a
+editar los dos asmdef de tests, y un renombrado de `Core` o `Data` no obligaría a editar el de `Gossip`.
 
 Dos consecuencias que no se ven a simple vista:
 
@@ -135,6 +143,14 @@ suscriptores, lo que hace visible un bus decorativo (A1). Las suscripciones se h
 | `OnPauseRequested` | `PlayerInputReader`, con Esc o Start | `GameManager` (alterna `Play` y `Paused`) |
 | `OnPickupCollected` | `PickupSpawner`, cuando el jugador toca un pickup | `SaveSystem` (lo convierte en moneda) |
 | `OnProgressChanged` | `ProgressService`, tras mutar el progreso | `SaveSystem` (marca el save como sucio), `DebugHud` |
+| `OnActionWitnessed` | **nadie todavía**; lo publicará `Npcs`, un evento por testigo | **nadie en runtime**; lo escuchará `GossipManager` |
+| `OnRelationshipChanged` | `GossipService`, solo si la opinión cambió de verdad | **nadie en runtime**; lo escucharán `SaveSystem`, `Shopkeeper` y `DebugHud`. Hoy solo los tests |
+| `OnRumorSpread` | `GossipService`, por cada salto que de verdad mueve a alguien | **nadie en runtime**; lo escuchará `DebugHud` |
+| `OnRelationshipsRestored` | **nadie todavía**; lo publicará `SaveSystem` al llegar `OnBootstrapComplete` | **nadie en runtime**; lo escuchará `GossipManager` |
+
+Las cuatro últimas existen como contrato y están cubiertas por tests, pero ninguna tiene todavía un
+productor ni un consumidor en una partida. No se publican, así que el aviso de `EventBus` por publicar
+sin suscriptores no salta: es la razón por la que se definieron antes de tiempo y no se publicaron.
 
 ### El ciclo de recolección
 
@@ -211,6 +227,42 @@ cápsula con el tag `Player`, rotación congelada e interpolación, sobre un pla
 
 Entrar en Play directamente desde `Scene_Game` no hace aparecer pickups: sin bootstrap no hay pool.
 
+### Gossip
+
+El primer módulo propio del juego. Tiene las tres primeras capas y le falta la cuarta, que es justo la
+que lo conectaría a una partida.
+
+| Tipo | Clase | Responsabilidad |
+|---|---|---|
+| Datos | `RelationshipGraph` | Opiniones dirigidas `(npc, acercaDe) → int`, con tope configurable. Disperso: un delta cero no crea entrada y un `Set` a cero la borra, así que `Count` y el save solo crecen con opiniones que de verdad se movieron |
+| Datos | `SocialGraph` | Quién confía en quién y cuánto. Inmutable tras construirse y con los lazos ordenados por id, porque el orden de un `Dictionary` no es contractual y un frente sin orden haría que el recorrido variara entre ejecuciones |
+| Dominio | `RumorPropagator` | `Plan` devuelve todos los saltos como datos, en anchura. Cada NPC se entera una vez y por el camino más corto. `Carry` aplica la confianza y luego el decaimiento, y un salto que se trunca a cero no se planea |
+| Dominio | `GossipService` | Dueño del grafo de opiniones. `WitnessAction` mueve al testigo y encola la historia; `Tick` libera los saltos vencidos en tiempo de juego, así que la pausa los detiene; `Restore` aplica un save en silencio |
+| Adapter | **falta** | `GossipManager`: construir el servicio desde los SO en `Awake`, suscribirse en `OnEnable` y llamar a `Tick(Time.deltaTime)` en `Update` |
+
+Tres detalles que no se ven en las firmas:
+
+- **`Restore` no publica.** Aplicar un save por `Apply` publicaría un `OnRelationshipChanged` por fila,
+  y `SaveSystem` escucha ese evento para marcar el save como sucio: una partida recién cargada se
+  reescribiría a sí misma en el acto.
+- **`Tick` entrega después de dejar la cola consistente.** Un suscriptor de `OnRelationshipChanged`
+  puede provocar otro avistamiento, y mutar la cola mientras se recorre perdería o duplicaría saltos. Es
+  el mismo índice de escritura por separado que usa `RespawnQueue.Tick`.
+- **`WitnessAction` devuelve `false` en vez de lanzar** cuando el actor es su propio testigo.
+  `RelationshipGraph` rechaza esa pareja, y tumbar la partida por un filtro que pertenece a la capa de
+  percepción sería el cambio equivocado. El `bool` es lo que evita que la decisión sea silenciosa (R9).
+
+En `Data`, la configuración: `NpcDefinitionSO` (id, nombre visible y lazos), `GossipConfigSO` (tope de
+opinión, decaimiento, saltos máximos y retardo por salto), `ActionDefinitionSO` (id, nombre visible y
+delta base) y `SocialTie`, que es el lazo serializable. `ActionDefinitionSO` lleva tres campos y no los
+cinco que se esbozaron: no hay severidad ni `requiresTarget` porque nada los lee hasta que exista
+`ActionCatalog`, y un asset de configuración relleno para parecer completo es el M11 que la guía
+prohíbe. `GameConfigSO` con un solo campo es el precedente.
+
+`SocialTie` y `SocialGraph.Tie` son dos tipos para lo mismo, y es a propósito: `Gossip` no puede
+arrastrar la serialización de Unity hasta su dominio, y `Data` no puede referenciar `Gossip`. El adapter
+traduce de uno a otro en la frontera, igual que `ISaveLifecycle` separa `Core` de `Save`.
+
 ### Debug
 
 `DebugHud` usa **UI Toolkit** (la guía pide Canvas con TextMeshPro; la decisión está en `QWEN.md`).
@@ -227,11 +279,12 @@ script. Es lo esperado: la assembly `Debug` no entra en ese build (comprobado co
 ## Tests
 
 Los tests vienen de la plantilla: cubren los bugs reales de la auditoría y demuestran que los
-sistemas están conectados.
+sistemas están conectados. Los del chisme son nuevos y cubren solo lógica pura.
 
 - **EditMode** (lógica pura, milisegundos): `EventBus`, state machine, `GameManager` (pausa incluida),
   pool, save (almacenamiento, migraciones, progreso), regla de la escena de entrada, texto del HUD,
-  movimiento del jugador (incluido que se sienta igual a 30 y a 120 fps) y `RespawnQueue`.
+  movimiento del jugador (incluido que se sienta igual a 30 y a 120 fps) y `RespawnQueue`. Del chisme:
+  `RelationshipGraph` (29 casos), `RumorPropagator` (22) y `GossipService` (24).
 - **PlayMode** (escenas reales): el arranque completo desde `Scene_Bootstrap` y que los managers
   sobrevivan a él, que el HUD reciba los eventos, el error al entrar desde `Scene_Game`, un teclado
   virtual que mueve al jugador solo en `Play` y lo detiene al soltar, Esc que pausa, congela al jugador
@@ -239,7 +292,12 @@ sistemas están conectados.
   que `PlayerMover` y `PlayerInputReader` se deshabiliten con un error claro si les falta
   configuración.
 
-El número de tests y su duración están en el `README.md`.
+El número de tests, su duración y los errores esperados en consola están en el `README.md`.
+
+**Del chisme no hay ningún test de PlayMode, y hoy no puede haberlo**: nada del módulo aparece en una
+escena, así que no hay recorrido de extremo a extremo que ejercitar. Los 75 casos nuevos son todos de
+EditMode y corren contra el bus con sinks en vez de suscriptores reales. Los de PlayMode llegan con el
+adapter.
 
 ## Resumen de las 14 reglas
 
@@ -260,24 +318,27 @@ El número de tests y su duración están en el `README.md`.
 | R13 | Ningún `Debug.Log` fuera de `Log.cs` |
 | R14 | El save se migra, nunca se borra |
 
-## El sistema de chisme (planeado)
+## El sistema de chisme: lo que falta
 
-**Nada de esta sección existe en el código todavía.** Es el diseño acordado para la primera rebanada,
-y se documenta aquí porque cambia el grafo de assemblies y porque la restricción R3 obliga a una
-decisión concreta sobre cómo circula el estado.
+`Gossip` ya existe, y su capa de dominio está descrita en [Módulos](#gossip). Esta sección cubre las
+otras tres assemblies y el recorrido completo, que es lo que convierte ese dominio en una partida. Va
+aquí porque cambia el grafo de assemblies y porque la restricción R3 obliga a una decisión concreta
+sobre cómo circula el estado.
 
-### Cuatro hojas nuevas
+### Tres hojas nuevas
 
-Cuatro assemblies, todas con `Core` y `Data` como únicas referencias del proyecto, y sin referenciarse
-entre ellas. El grafo sigue siendo acíclico y `Debug` y los tests siguen siendo las únicas hojas que
-referencian todos los módulos.
+Tres assemblies, todas con `Core` y `Data` como únicas referencias del proyecto, y sin referenciarse
+entre ellas ni con `Gossip`. El grafo sigue siendo acíclico y `Debug` y los tests siguen siendo las
+únicas hojas que referencian todos los módulos.
 
 | Assembly | Referencia | Contenido previsto |
 |---|---|---|
-| `Gossip` | `Core`, `Data` | Grafo de opiniones y propagación de rumores, en C# puro, más su adapter |
-| `Npcs` | `Core`, `Data` | Identidad de los NPCs y percepción: quién presenció una acción |
+| `Npcs` | `Core`, `Data` | Identidad de los NPCs y percepción: quién presenció una acción. Es quien publica `OnActionWitnessed` |
 | `Actions` | `Core`, `Data`, `Unity.InputSystem` | Verbos del jugador. Valida y publica, no interpreta |
 | `Shop` | `Core`, `Data` | Condiciones del herrero: multiplicador de precio y negativa |
+
+De `Gossip` solo falta el adapter, `GossipManager`, que es lo que hace que todo lo anterior exista en
+una escena y no solo en los tests.
 
 Dos grafos distintos, y conviene no mezclarlos:
 
@@ -303,6 +364,13 @@ flowchart LR
 Ninguna flecha es una referencia entre assemblies: todas son publicaciones en el bus (R4). `Actions`
 no sabe quién miraba, `Npcs` no sabe qué opina nadie de nadie, `Gossip` no sabe que existe una tienda
 y `Shop` no sabe cómo se propagó el rumor.
+
+De las nueve flechas, **ocho no existen hoy**. La que sí funciona es la última, `Save → HUD` por
+`OnProgressChanged`, y funciona porque viene del ciclo de recolección heredado, no del chisme. El
+diagrama es el destino y no el estado: faltan los tres módulos que emiten o reciben las otras, y los
+cinco eventos de la tienda y las acciones que aún no se han definido en `Core` porque nada los
+publicaría. Lo que sí existe es el extremo de `Gossip`, que ya sabe emitir `OnRelationshipChanged` y
+`OnRumorSpread` y ya sabe recibir `OnActionWitnessed`, probado contra sinks en EditMode.
 
 ### La consecuencia de R3: el estado se empuja, no se tira
 
