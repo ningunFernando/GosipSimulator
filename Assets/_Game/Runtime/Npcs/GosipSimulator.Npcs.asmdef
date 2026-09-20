@@ -1,0 +1,17 @@
+{
+    "name": "GosipSimulator.Npcs",
+    "rootNamespace": "GosipSimulator.Npcs",
+    "references": [
+        "GosipSimulator.Core",
+        "GosipSimulator.Data"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

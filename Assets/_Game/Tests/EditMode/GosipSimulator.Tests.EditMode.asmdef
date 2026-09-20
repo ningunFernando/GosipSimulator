@@ -10,7 +10,8 @@
         "GosipSimulator.Pickups",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "GosipSimulator.Gossip"
+        "GosipSimulator.Gossip",
+        "GosipSimulator.Npcs"
     ],
     "includePlatforms": [
         "Editor"

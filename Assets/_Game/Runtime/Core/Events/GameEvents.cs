@@ -1,3 +1,4 @@
+using UnityEngine;
 using GosipSimulator.Core.State;
 
 namespace GosipSimulator.Core
@@ -68,6 +69,35 @@ namespace GosipSimulator.Core
     public struct OnPickupCollected
     {
         public int value;
+    }
+
+    #endregion
+
+    // ────────────────────────────────
+    // ACTION EVENTS
+    // ────────────────────────────────
+    #region Action Events
+
+    /// <summary>
+    /// Published by whoever owns the player's verbs, once, when an action actually happens. It says
+    /// what was done and where, and nothing about who noticed: working out who was looking belongs to
+    /// perception, and the publisher never learns the answer (R4).
+    ///
+    /// The position is what perception needs and the only reason it is here. An id would not do: two
+    /// NPCs standing in different places have to get different answers about the same action.
+    /// </summary>
+    public struct OnActionCommitted
+    {
+        public string actionId;
+
+        /// <summary>Who did it. The player, today; an NPC could act too.</summary>
+        public string actorId;
+
+        /// <summary>Who it was done to. Empty when the action had no victim.</summary>
+        public string targetId;
+
+        /// <summary>Where it happened, in world space.</summary>
+        public Vector3 position;
     }
 
     #endregion

@@ -10,7 +10,8 @@
         "GosipSimulator.Pickups",
         "Unity.InputSystem",
         "UnityEngine.TestRunner",
-        "GosipSimulator.Gossip"
+        "GosipSimulator.Gossip",
+        "GosipSimulator.Npcs"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -17,13 +17,16 @@ adapter que la arranca**: el grafo de opiniones, el grafo social, la propagació
 que publica, los ScriptableObjects, los assets de la aldea y el `GossipManager` que lo monta todo en
 `Scene_Game`. Las dos suites pasan, 145 en EditMode y 18 en PlayMode.
 
-**El chisme ya corre en una partida y ya sobrevive a cerrarla, pero todavía nadie lo dispara.** El hito
-6 cerró el call site que faltaba y el 7 la persistencia: al entrar en juego existe un `GossipService` de
-verdad, construido desde los assets, que recibe avistamientos del bus, mueve los rumores en tiempo de
-juego, escribe cada opinión en `save.json` y la recupera al arrancar. Lo que no existe todavía es quien
-publique `OnActionWitnessed`, así que al jugar sigue ocurriendo lo mismo que en la plantilla hasta que
-llegue `Npcs`. La sección [El sistema de chisme](#el-sistema-de-chisme) separa lo que existe de lo que
-falta.
+**La aldea ya ve, opina, cotillea y se acuerda. Lo único que falta es que el jugador pueda hacer algo.**
+Los hitos 6, 7 y 8 encadenaron el sistema entero: hay cuatro NPCs en `Scene_Game` con su alcance de
+vista, un `OnActionCommitted` en el bus hace que quien estuviera cerca lo presencie, el testigo se forma
+una opinión, el rumor viaja por el grafo social en tiempo de juego, y todo lo que se mueve acaba en
+`save.json` y vuelve al arrancar. Un test de PlayMode recorre ese camino entero, de una acción a filas en
+disco, cruzando cuatro assemblies que no se referencian entre sí.
+
+Lo que no existe es el principio de la cadena: **nadie publica `OnActionCommitted` todavía**. Eso es el
+hito 9, y hasta entonces solo los tests pueden robar. La sección
+[El sistema de chisme](#el-sistema-de-chisme) separa lo que existe de lo que falta.
 
 | Documento | Para qué sirve |
 |---|---|
@@ -108,14 +111,15 @@ Medido el 2026-09-20 en este repo, con el Editor abierto y el CLI de Unity MCP:
 
 | Suite | Tests | Errores esperados en consola | Warnings |
 |---|---|---|---|
-| EditMode | 167 en verde | 6 | 7 |
-| PlayMode | 22 en verde | 6 | 2 |
+| EditMode | 187 en verde | 6 | 7 |
+| PlayMode | 28 en verde | 7 | 2 |
 
-De los 167 de EditMode, **70 vienen de la plantilla y 97 son del chisme y su persistencia**: 29 de
-`RelationshipGraph`, 22 de `RumorPropagator`, 24 de `GossipService`, 20 de `RelationshipStore` y 2 más
-en `SaveMigrationsTests` desde que existe la migración real. De los 22 de PlayMode, **12 vienen de la
-plantilla y 10 son nuevos**: 6 en `GossipFlowTests` y 4 en `RelationshipPersistenceTests`. El sexto
-error esperado de PlayMode sale del test que comprueba que una acción sin definición se rechaza.
+De los 187 de EditMode, **70 vienen de la plantilla y 117 son del juego**: 29 de `RelationshipGraph`,
+22 de `RumorPropagator`, 24 de `GossipService`, 20 de `RelationshipStore`, 20 de `PerceptionResolver` y
+2 más en `SaveMigrationsTests` desde que existe la migración real. De los 28 de PlayMode, **12 vienen
+de la plantilla y 16 son nuevos**: 6 en `GossipFlowTests`, 4 en `RelationshipPersistenceTests` y 6 en
+`PerceptionFlowTests`. Los dos últimos errores esperados de PlayMode salen de los dos tests que
+comprueban que una entrada mal formada se rechaza, uno en `GossipManager` y otro en `NpcRegistry`.
 
 Los errores son intencionados: cada test que prueba un caso de error declara el mensaje con
 `LogAssert.Expect` y falla si no aparece. `verify` los cuenta igualmente porque solo lee la consola, no
@@ -268,13 +272,13 @@ otro rompe el emparejamiento, así que `isuzu-unity-cli upgrade` implica cambiar
 
 ## El sistema de chisme
 
-Cuatro assemblies nuevas, todas hoja sobre `Core` y `Data`, y sin referenciarse entre ellas (R3). Una
-existe; las otras tres no.
+Cuatro assemblies nuevas, todas hoja sobre `Core` y `Data`, y sin referenciarse entre ellas (R3). Dos
+existen; las otras dos no.
 
 | Assembly | De qué es dueña | Estado |
 |---|---|---|
 | `GosipSimulator.Gossip` | Opiniones, grafo social y propagación de rumores | Completa: dominio y adapter |
-| `GosipSimulator.Npcs` | Identidad de los NPCs y percepción: quién presenció qué | No existe |
+| `GosipSimulator.Npcs` | Identidad de los NPCs y percepción: quién presenció qué | Completa: dominio y adapter |
 | `GosipSimulator.Actions` | Los verbos del jugador. Valida y publica, no interpreta | No existe |
 | `GosipSimulator.Shop` | Las condiciones del herrero: multiplicador de precio y negativa | No existe |
 
@@ -290,14 +294,28 @@ En `Runtime/Gosip/`, con la forma de tres capas que ya usan `Save` y `Pickups`:
 | `GossipService` | dominio | Dueño del grafo de opiniones. Convierte un avistamiento en deltas, encola los saltos y los libera con `Tick` en tiempo de juego |
 | `GossipManager` | adapter | Construye el servicio desde los SO en `Awake`, se suscribe al bus en `OnEnable` y llama a `Tick(Time.deltaTime)` en `Update`. Resuelve el `actionId` del evento a su delta base, porque `Gossip` no puede referenciar `Actions` (R3) |
 
+En `Runtime/Npcs/`, la percepción:
+
+| Tipo | Capa | Qué hace |
+|---|---|---|
+| `PerceptionResolver` | dominio puro | Quién vio algo, por distancia. Excluye al propio actor, devuelve los testigos del más cercano al más lejano, y rompe los empates por id para que el orden no dependa de cómo se autoró la escena |
+| `Npc` | adapter | Un aldeano: su `NpcDefinitionSO` y su alcance de vista. Casi vacío a propósito |
+| `NpcRegistry` | adapter | Sabe quién está en la escena. Escucha `OnActionCommitted`, pregunta al resolver y publica un `OnActionWitnessed` por testigo |
+
+En `Scene_Game` hay cuatro NPCs con alcance 6: el hijo en `(2, 1, 2)`, el herrero en `(-9, 1, 7)`, el
+aldeano en `(9, 1, -7)` y el anciano en `(-10, 1, -10)`. Solo el hijo alcanza a ver el centro del mapa,
+que es justo lo que hace que el caso del herrero funcione: robas en medio, te ve el hijo, y el padre se
+entera por él.
+
 En `Data`: `SocialTie`, `NpcDefinitionSO`, `GossipConfigSO` y `ActionDefinitionSO`, más siete assets. La
 aldea es una cadena conectada: `son → blacksmith@90 → villager@50 → elder@40`.
 
-En `Core`, cuatro eventos: `OnActionWitnessed`, `OnRelationshipChanged`, `OnRumorSpread` y
-`OnRelationshipsRestored`. Los cinco de la tienda y las acciones no están, a propósito: nada los
-publicaría ni los escucharía todavía (R12).
+En `Core`, cinco eventos: `OnActionCommitted`, `OnActionWitnessed`, `OnRelationshipChanged`, `OnRumorSpread` y
+`OnRelationshipsRestored`. Los cuatro de la tienda no están, a propósito: nada los publicaría ni los
+escucharía todavía (R12).
 
-75 tests de EditMode cubren el dominio, y 6 de PlayMode cubren el adapter dentro de una escena real.
+95 tests de EditMode cubren los dos dominios, y 12 de PlayMode los dos adapters dentro de una escena
+real.
 
 El `GossipManager` vive en el objeto `SocialGraph` de `Scene_Game`, con los siete assets asignados. Si
 algo de esa configuración falta o no cuadra, el componente registra el motivo concreto y se deshabilita
@@ -305,16 +323,29 @@ en vez de quedarse a medio construir (R9). Entre las comprobaciones hay una que 
 apunte a un id que ningún `NpcDefinitionSO` declara se rechaza, porque `SocialGraph` crearía el nodo
 igual y los rumores viajarían a un NPC fantasma sin que nada lo dijera.
 
-**Lo que todavía no ocurre es que alguien publique `OnActionWitnessed`.** El servicio existe, escucha y
-tiene su `Tick` corriendo, pero hasta que exista `Npcs` nadie presencia nada, así que en una partida la
-aldea no se entera de nada. La diferencia con antes del hito 6 es real y es la que importa: el código ya
-no es un dominio sin call site, que es el defecto central de HamsterBall.
+**Lo que todavía no ocurre es que alguien publique `OnActionCommitted`.** Toda la maquinaria de
+después existe y está probada de extremo a extremo, pero el jugador no tiene ningún verbo con el que
+empezarla: el hito 9 es el que le da uno. Hasta entonces, robar es algo que solo pueden hacer los tests.
+
+El recorrido que sí funciona hoy, y que `PerceptionFlowTests` comprueba entero en una escena real:
+
+```
+OnActionCommitted en (0, 1, 0)
+  -> Npcs: el hijo está a 2.83, dentro de su alcance de 6; los demás no
+  -> OnActionWitnessed { witness: son }
+  -> Gossip: el hijo pasa a -10, y encola el rumor
+  -> tras el retardo por salto: herrero -5, aldeano -1, el anciano nunca se entera
+  -> OnRelationshipChanged por cada cambio real
+  -> Save: tres filas en save.json al pausar
+```
+
+Ninguna de esas flechas es una referencia entre assemblies. `Npcs` no sabe qué opina nadie, `Gossip` no
+sabe quién miraba, y `Save` no sabe qué es un rumor.
 
 ### Lo que falta
 
 | # | Hito |
 |---|---|
-| 8 | `Npcs`: `Npc`, `PerceptionResolver`, `NpcRegistry` |
 | 9 | `Actions`: `Interactable`, `ActionCatalog`, `InteractionReader`, y la acción `Interact` en `InputSystem_Actions` |
 | 10 | `Shop`: `PricingPolicy`, `Shopkeeper`, y los cinco eventos que faltan |
 | 11 | El HUD mostrando la opinión |
