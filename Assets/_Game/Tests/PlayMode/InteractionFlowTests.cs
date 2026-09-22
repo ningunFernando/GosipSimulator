@@ -289,8 +289,8 @@ namespace GosipSimulator.Tests
         }
 
         /// <summary>
-        /// OnRumorSpread still has no consumer in a running game, so without a sink here EventBus
-        /// warns about publishing to nobody. The HUD picks it up in milestone 11.
+        /// Records what the key press set off. Since milestone 11 the HUD consumes OnRumorSpread too,
+        /// so these sinks are here to be read by the assertions, not to keep EventBus quiet.
         /// </summary>
         private void SubscribeSinks()
         {

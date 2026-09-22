@@ -251,8 +251,8 @@ namespace GosipSimulator.Tests
         }
 
         /// <summary>
-        /// OnRumorSpread still has no consumer in a running game, so without a sink here EventBus
-        /// warns about publishing to nobody and the suite grows a warning that means nothing.
+        /// Records what the village said. Since milestone 11 the HUD consumes OnRumorSpread too, so
+        /// the sink is here to be read by the assertions, not to keep EventBus quiet.
         /// </summary>
         private void SubscribeSinks()
         {

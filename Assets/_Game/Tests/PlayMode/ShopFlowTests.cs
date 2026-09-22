@@ -47,7 +47,6 @@ namespace GosipSimulator.Tests
         private readonly List<OnPurchaseApproved> _approved = new List<OnPurchaseApproved>();
         private readonly List<OnPurchaseRefused>  _refused  = new List<OnPurchaseRefused>();
         private readonly List<OnPurchaseSettled>  _settled  = new List<OnPurchaseSettled>();
-        private readonly List<OnRumorSpread>      _rumors   = new List<OnRumorSpread>();
 
         private Keyboard _keyboard;
         private string   _tempFolder;
@@ -69,7 +68,6 @@ namespace GosipSimulator.Tests
             _approved.Clear();
             _refused.Clear();
             _settled.Clear();
-            _rumors.Clear();
 
 #if UNITY_EDITOR
             // Keyboard input only reaches the game while the Game view has focus by default, and a
@@ -333,13 +331,11 @@ namespace GosipSimulator.Tests
             SetField(save, "_storage", new JsonSaveStorage(_savePath));
             save.Load();
 
-            // Sinks before the restore, so the starting terms are captured, and before anything can
-            // spread a rumor, which still has no consumer until the HUD listens (milestone 11).
+            // Sinks before the restore, so the starting terms published by it are captured too.
             EventBus.Subscribe<OnShopTermsChanged>(_terms.Add);
             EventBus.Subscribe<OnPurchaseApproved>(_approved.Add);
             EventBus.Subscribe<OnPurchaseRefused>(_refused.Add);
             EventBus.Subscribe<OnPurchaseSettled>(_settled.Add);
-            EventBus.Subscribe<OnRumorSpread>(_rumors.Add);
 
             RestoreBlacksmithOpinion(0);
         }
