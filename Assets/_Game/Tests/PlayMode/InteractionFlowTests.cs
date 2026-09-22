@@ -101,7 +101,7 @@ namespace GosipSimulator.Tests
         #region Tests
 
         [UnityTest]
-        public IEnumerator SceneGame_WiresOneReaderAndTwoInteractables()
+        public IEnumerator SceneGame_WiresOneReaderAndThreeInteractables()
         {
             yield return Boot();
 
@@ -113,7 +113,7 @@ namespace GosipSimulator.Tests
 
             Interactable[] interactables = Object.FindObjectsByType<Interactable>(FindObjectsInactive.Include);
 
-            Assert.AreEqual(2, interactables.Length, "The scene should hold the strongbox and the well.");
+            Assert.AreEqual(3, interactables.Length, "The scene should hold the strongbox, the well and the counter.");
 
             foreach (Interactable interactable in interactables)
             {

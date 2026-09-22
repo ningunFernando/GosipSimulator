@@ -189,4 +189,80 @@ namespace GosipSimulator.Core
     }
 
     #endregion
+
+    // ────────────────────────────────
+    // SHOP EVENTS
+    // ────────────────────────────────
+    #region Shop Events
+
+    /// <summary>
+    /// Published by a shopkeeper whenever what it would charge a customer changed, and once at every
+    /// restore so a listener starts from the real terms instead of guessing the base price. It is the
+    /// shop's own reading of an opinion: the multiplier belongs to Shop, the opinion to Gossip (R7).
+    /// </summary>
+    public struct OnShopTermsChanged
+    {
+        /// <summary>The NPC who runs the shop.</summary>
+        public string shopkeeperId;
+
+        /// <summary>Who these terms are for.</summary>
+        public string customerId;
+
+        /// <summary>The shopkeeper's opinion of the customer that produced these terms.</summary>
+        public int opinion;
+
+        /// <summary>The price as a percentage of the base price. 100 is the base price.</summary>
+        public int pricePercent;
+
+        /// <summary>What the item costs right now, in currency.</summary>
+        public int price;
+
+        /// <summary>True when the shopkeeper will not sell at any price.</summary>
+        public bool refuses;
+    }
+
+    /// <summary>
+    /// Published by a shopkeeper that agreed to sell. It is an agreement, not a sale: whether the
+    /// customer can pay belongs to whoever owns the currency, which answers with OnPurchaseSettled.
+    /// Shop never learns what the balance is, and Save never learns why the price is what it is (R4).
+    /// </summary>
+    public struct OnPurchaseApproved
+    {
+        public string shopkeeperId;
+        public string customerId;
+        public string itemId;
+
+        /// <summary>Always one or more. A shop cannot approve giving something away.</summary>
+        public int price;
+    }
+
+    /// <summary>
+    /// Published by a shopkeeper that will not sell to this customer at all. Nothing is spent and
+    /// nothing reaches Save. The opinion is carried so a listener can say why without asking Gossip.
+    /// </summary>
+    public struct OnPurchaseRefused
+    {
+        public string shopkeeperId;
+        public string customerId;
+        public string itemId;
+        public int opinion;
+    }
+
+    /// <summary>
+    /// Published by the owner of the currency once it has tried to take the price of an approved
+    /// purchase. Paid or not, this is the end of that purchase, which is why a failed payment is an
+    /// event rather than silence: without it the player would press the key and see nothing (R9).
+    /// </summary>
+    public struct OnPurchaseSettled
+    {
+        public string shopkeeperId;
+        public string customerId;
+        public string itemId;
+        public int price;
+
+        /// <summary>False when the customer could not afford it. The balance was left untouched.</summary>
+        public bool paid;
+    }
+
+    #endregion
 }

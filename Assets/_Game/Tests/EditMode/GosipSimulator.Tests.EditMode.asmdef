@@ -12,7 +12,8 @@
         "UnityEditor.TestRunner",
         "GosipSimulator.Gossip",
         "GosipSimulator.Npcs",
-        "GosipSimulator.Actions"
+        "GosipSimulator.Actions",
+        "GosipSimulator.Shop"
     ],
     "includePlatforms": [
         "Editor"

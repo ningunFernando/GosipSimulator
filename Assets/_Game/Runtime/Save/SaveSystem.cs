@@ -53,6 +53,7 @@ namespace GosipSimulator.Save
             EventBus.Subscribe<OnGameStateChanged>(HandleGameStateChanged);
             EventBus.Subscribe<OnRelationshipChanged>(HandleRelationshipChanged);
             EventBus.Subscribe<OnBootstrapComplete>(HandleBootstrapComplete);
+            EventBus.Subscribe<OnPurchaseApproved>(HandlePurchaseApproved);
         }
 
         private void OnDisable()
@@ -62,6 +63,7 @@ namespace GosipSimulator.Save
             EventBus.Unsubscribe<OnGameStateChanged>(HandleGameStateChanged);
             EventBus.Unsubscribe<OnRelationshipChanged>(HandleRelationshipChanged);
             EventBus.Unsubscribe<OnBootstrapComplete>(HandleBootstrapComplete);
+            EventBus.Unsubscribe<OnPurchaseApproved>(HandlePurchaseApproved);
         }
 
         /// <summary>
@@ -217,6 +219,45 @@ namespace GosipSimulator.Save
             EventBus.Publish(_relationships.ToRestoredPayload());
 
             Log.Trace($"[SaveSystem] Restored {_relationships.Count} opinions to the village.");
+        }
+
+        /// <summary>
+        /// Save owns the currency, so it is the one that decides whether an approved purchase can be
+        /// paid for. The shop agreed to a price without knowing the balance and Save takes it without
+        /// knowing why it is that price (R4), the same deal as a pickup turning into currency, run
+        /// backwards. TrySpend publishes OnProgressChanged on success, which marks the save dirty.
+        /// </summary>
+        private void HandlePurchaseApproved(OnPurchaseApproved e)
+        {
+            if (_progress == null)
+            {
+                Log.Error("[SaveSystem] Purchase approved before Load. Nothing was spent.");
+                return;
+            }
+
+            if (e.price <= 0)
+            {
+                // PricingPolicy never produces this, and TrySpend would throw on it. Reported and
+                // dropped, because a free sale is a bug in whoever approved it, not a sale (R9).
+                Log.Error($"[SaveSystem] '{e.shopkeeperId}' approved '{e.itemId}' at {e.price}. Not charged.");
+                return;
+            }
+
+            bool paid = _progress.TrySpend(e.price);
+
+            // Settled either way. A purchase the player cannot afford has to end in an event too,
+            // or pressing the key at the counter would look like the counter is broken.
+            EventBus.Publish(new OnPurchaseSettled
+            {
+                shopkeeperId = e.shopkeeperId,
+                customerId   = e.customerId,
+                itemId       = e.itemId,
+                price        = e.price,
+                paid         = paid
+            });
+
+            Log.Trace($"[SaveSystem] '{e.itemId}' from '{e.shopkeeperId}' for {e.price}: " +
+                      $"{(paid ? "paid" : "could not afford it")}. Currency {_data.currency}.");
         }
 
         #endregion
