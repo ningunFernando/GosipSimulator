@@ -1,0 +1,8 @@
+/*How the graph is gonna look, any styles that the engine cannot find is gonna fall under unity's default styles*/
+GridBackground {
+    --grid-background-color: rgb(32, 32, 32);
+    --line-color: rgba(255, 255, 255, 0.04);
+    --thick-line-color: rgba(255, 255, 255, 0.10);
+    --spacing: 20;
+    --thick-lines: 5;
+}
