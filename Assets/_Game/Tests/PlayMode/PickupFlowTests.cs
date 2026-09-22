@@ -1,7 +1,5 @@
-using System;
 using System.Collections;
 using System.IO;
-using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -21,16 +19,16 @@ namespace GosipSimulator.Tests
     /// <summary>
     /// The loop that exercises pool, bus, save and HUD together at runtime: the spawner takes pickups
     /// from the pool, the player touches one, Save turns OnPickupCollected into currency, the HUD shows
-    /// it, the pickup goes back to the pool and returns to its point, and pausing writes the save. The
-    /// save is redirected to a temporary file, so the real one is never written by a test.
+    /// it, the pickup goes back to the pool and returns to its point, and pausing writes the save.
+    /// [IsolatedSave] points the save at a temporary folder before boot, so the real one is never read
+    /// or written by a test.
     /// </summary>
+    [IsolatedSave]
     public class PickupFlowTests
     {
         private const string BootstrapScene = "Scene_Bootstrap";
         private const int    MaxFrames      = 600;
         private const float  RespawnTimeout = 5f;
-
-        private string _tempFolder;
 
         // ────────────────────────────────
         // TEARDOWN
@@ -48,9 +46,6 @@ namespace GosipSimulator.Tests
             DestroyAll(Object.FindObjectsByType<SaveSystem>());
 
             EventBus.ClearAllSubscriptions();
-
-            if (_tempFolder != null && Directory.Exists(_tempFolder)) Directory.Delete(_tempFolder, true);
-            _tempFolder = null;
         }
 
         #endregion
@@ -99,12 +94,8 @@ namespace GosipSimulator.Tests
         {
             yield return BootAndWaitForPlay();
 
-            _tempFolder = Path.Combine(Path.GetTempPath(), "GosipSimulatorTests_" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(_tempFolder);
-            string savePath = Path.Combine(_tempFolder, "save.json");
-
-            SaveSystem save = FindSingle<SaveSystem>();
-            SetField(save, "_storage", new JsonSaveStorage(savePath));
+            string     savePath = IsolatedSaveAttribute.SavePath;
+            SaveSystem save     = FindSingle<SaveSystem>();
 
             Rigidbody player = FindSingle<PlayerMover>().GetComponent<Rigidbody>();
             yield return TeleportAndStep(player, FindAnyActivePickup().transform.position);
@@ -193,15 +184,6 @@ namespace GosipSimulator.Tests
             Assert.IsNotNull(label, "The HUD label is not in the UIDocument tree.");
 
             return label.text;
-        }
-
-        private static void SetField(object target, string name, object value)
-        {
-            FieldInfo field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            Assert.IsNotNull(field, $"{target.GetType().Name}.{name} was renamed or removed. Update this test seam.");
-
-            field.SetValue(target, value);
         }
 
         private static void DestroyAll<T>(T[] components) where T : Component

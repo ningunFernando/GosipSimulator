@@ -1,8 +1,5 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -28,6 +25,7 @@ namespace GosipSimulator.Tests
     /// carrying Help. So the strongbox is in reach at spawn and the well is not, which is what makes
     /// walking to it mean something.
     /// </summary>
+    [IsolatedSave]
     public class InteractionFlowTests
     {
         private const string BootstrapScene = "Scene_Bootstrap";
@@ -41,8 +39,6 @@ namespace GosipSimulator.Tests
         private readonly List<OnRumorSpread>     _rumors    = new List<OnRumorSpread>();
 
         private Keyboard _keyboard;
-        private string   _tempFolder;
-        private string   _savePath;
 
 #if UNITY_EDITOR
         private InputSettings.EditorInputBehaviorInPlayMode _previousBehavior;
@@ -68,10 +64,6 @@ namespace GosipSimulator.Tests
                 InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
 #endif
             _keyboard = InputSystem.AddDevice<Keyboard>();
-
-            _tempFolder = Path.Combine(Path.GetTempPath(), "GosipSimulatorTests_" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(_tempFolder);
-            _savePath = Path.Combine(_tempFolder, "save.json");
         }
 
         [TearDown]
@@ -89,8 +81,6 @@ namespace GosipSimulator.Tests
             DestroyAll(Object.FindObjectsByType<SaveSystem>());
 
             EventBus.ClearAllSubscriptions();
-
-            if (Directory.Exists(_tempFolder)) Directory.Delete(_tempFolder, true);
         }
 
         #endregion
@@ -219,7 +209,7 @@ namespace GosipSimulator.Tests
             EventBus.Publish(new OnPauseRequested());
             yield return null;
 
-            var onDisk = new RelationshipStore(new JsonSaveStorage(_savePath).Load());
+            var onDisk = new RelationshipStore(new JsonSaveStorage(IsolatedSaveAttribute.SavePath).Load());
 
             Assert.AreEqual(3, onDisk.Count, "The file does not hold one row per moved opinion.");
             Assert.AreEqual(-10, onDisk.Get("son", Actor));
@@ -272,8 +262,6 @@ namespace GosipSimulator.Tests
 
             Assert.IsTrue(GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.Play,
                 "The bootstrap never reached Play; see BootstrapSequenceTests.");
-
-            SetField(FindSingle<SaveSystem>(), "_storage", new JsonSaveStorage(_savePath));
         }
 
         /// <summary>Press and release across a few frames, so the action sees both edges.</summary>
@@ -328,15 +316,6 @@ namespace GosipSimulator.Tests
             Assert.AreEqual(1, found.Length, $"Expected exactly one {typeof(T).Name}.");
 
             return found[0];
-        }
-
-        private static void SetField(object target, string name, object value)
-        {
-            FieldInfo field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            Assert.IsNotNull(field, $"{target.GetType().Name}.{name} was renamed or removed. Update this test seam.");
-
-            field.SetValue(target, value);
         }
 
         private static void DestroyAll<T>(T[] components) where T : Component

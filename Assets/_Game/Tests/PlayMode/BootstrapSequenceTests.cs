@@ -19,6 +19,7 @@ namespace GosipSimulator.Tests
     /// actually produce a running game. Everything else about the bootstrap is checked in
     /// milliseconds elsewhere; this is the end-to-end smoke test the Definition of Done asks for.
     /// </summary>
+    [IsolatedSave]
     public class BootstrapSequenceTests
     {
         private const string BootstrapScene = "Scene_Bootstrap";

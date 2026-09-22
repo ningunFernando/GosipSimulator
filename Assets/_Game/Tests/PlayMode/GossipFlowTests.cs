@@ -1,8 +1,5 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
@@ -28,7 +25,11 @@ namespace GosipSimulator.Tests
     /// at 40, and 40 percent lost per hop. The witness lands at -10, the blacksmith at -5, the
     /// villager at -1 and the elder never hears it. A failure here is either the adapter or an asset
     /// somebody retuned.
+    ///
+    /// [IsolatedSave] is what makes those numbers exact: every test boots into an empty save, so no
+    /// opinion the player left on disk is restored into the village before the test starts.
     /// </summary>
+    [IsolatedSave]
     public class GossipFlowTests
     {
         private const string BootstrapScene = "Scene_Bootstrap";
@@ -42,8 +43,6 @@ namespace GosipSimulator.Tests
 
         private readonly List<OnRelationshipChanged> _changes = new List<OnRelationshipChanged>();
         private readonly List<OnRumorSpread>         _rumors  = new List<OnRumorSpread>();
-
-        private string _tempFolder;
 
         // ────────────────────────────────
         // SETUP AND TEARDOWN
@@ -68,9 +67,6 @@ namespace GosipSimulator.Tests
             DestroyAll(Object.FindObjectsByType<SaveSystem>());
 
             EventBus.ClearAllSubscriptions();
-
-            if (_tempFolder != null && Directory.Exists(_tempFolder)) Directory.Delete(_tempFolder, true);
-            _tempFolder = null;
         }
 
         #endregion
@@ -250,37 +246,11 @@ namespace GosipSimulator.Tests
 
             Assert.IsTrue(GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.Play,
                 "The bootstrap never reached Play; see BootstrapSequenceTests.");
-
-            RedirectSaveToTemp();
         }
 
         /// <summary>
-        /// Points the save at a throwaway file, for every test in this class rather than only the
-        /// one that pauses. Since Save started persisting opinions, witnessing anything marks the
-        /// save dirty, so a pause anywhere in here would write the player's real file.
-        /// </summary>
-        private void RedirectSaveToTemp()
-        {
-            _tempFolder = Path.Combine(Path.GetTempPath(), "GosipSimulatorTests_" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(_tempFolder);
-
-            SetField(FindSingle<SaveSystem>(), "_storage",
-                new JsonSaveStorage(Path.Combine(_tempFolder, "save.json")));
-        }
-
-        private static void SetField(object target, string name, object value)
-        {
-            FieldInfo field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            Assert.IsNotNull(field, $"{target.GetType().Name}.{name} was renamed or removed. Update this test seam.");
-
-            field.SetValue(target, value);
-        }
-
-        /// <summary>
-        /// Subscribed before anything is published, and not only to record it: Gossip is the producer
-        /// of both events and nothing in a scene consumes them yet, so without a sink EventBus warns
-        /// about publishing to nobody and the suite grows a warning that means nothing.
+        /// Records what Gossip published. Save, the shop and the HUD consume both events in the
+        /// scene now, so the sinks are here to be read by the assertions, not to keep EventBus quiet.
         /// </summary>
         private void SubscribeSinks()
         {

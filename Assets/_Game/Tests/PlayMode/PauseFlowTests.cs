@@ -20,6 +20,7 @@ namespace GosipSimulator.Tests
     /// PlayerInputReader, travels the bus as OnPauseRequested, and GameManager toggles Play and Paused.
     /// Paused has to freeze scaled time and the player, and show on the HUD.
     /// </summary>
+    [IsolatedSave]
     public class PauseFlowTests
     {
         private const string BootstrapScene = "Scene_Bootstrap";

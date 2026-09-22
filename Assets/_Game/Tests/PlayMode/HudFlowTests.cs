@@ -1,8 +1,5 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -25,7 +22,11 @@ namespace GosipSimulator.Tests
     /// No sinks are subscribed here on purpose. The HUD is supposed to be the consumer now, so if a
     /// rumor or a shop event reaches the bus with nobody listening, the warning EventBus logs is
     /// caught and fails the test. That is the check that OnRumorSpread finally has a home.
+    ///
+    /// [IsolatedSave] boots every test into an empty temporary save, so the village starts neutral
+    /// and the HUD's first lines come from the real boot rather than from the player's file.
     /// </summary>
+    [IsolatedSave]
     public class HudFlowTests
     {
         private const string BootstrapScene = "Scene_Bootstrap";
@@ -38,9 +39,6 @@ namespace GosipSimulator.Tests
 
         private readonly List<string> _warnings = new List<string>();
 
-        private string _tempFolder;
-        private string _savePath;
-
         // ────────────────────────────────
         // SETUP AND TEARDOWN
         // ────────────────────────────────
@@ -50,10 +48,6 @@ namespace GosipSimulator.Tests
         public void SetUp()
         {
             _warnings.Clear();
-
-            _tempFolder = Path.Combine(Path.GetTempPath(), "GosipSimulatorTests_" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(_tempFolder);
-            _savePath = Path.Combine(_tempFolder, "save.json");
 
             Application.logMessageReceived += CaptureWarning;
         }
@@ -70,8 +64,6 @@ namespace GosipSimulator.Tests
             DestroyAll(Object.FindObjectsByType<SaveSystem>());
 
             EventBus.ClearAllSubscriptions();
-
-            if (Directory.Exists(_tempFolder)) Directory.Delete(_tempFolder, true);
         }
 
         #endregion
@@ -86,6 +78,8 @@ namespace GosipSimulator.Tests
         {
             yield return Boot();
 
+            // Nothing published these terms but the boot itself: Save restored an empty file, the
+            // shop answered with its starting terms, and the HUD was already listening.
             StringAssert.Contains("blacksmith: 5 (100%)", HudText(), "The starting terms never reached the HUD.");
         }
 
@@ -164,11 +158,6 @@ namespace GosipSimulator.Tests
         // ────────────────────────────────
         #region Helpers
 
-        /// <summary>
-        /// Boots the real game, points Save at a temporary file with zero currency, and restores
-        /// every villager to zero so the opinions, the price and the HUD start from neutral whatever
-        /// the real save holds.
-        /// </summary>
         private IEnumerator Boot()
         {
             SceneManager.LoadScene(BootstrapScene);
@@ -185,19 +174,6 @@ namespace GosipSimulator.Tests
 
             Assert.IsTrue(GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.Play,
                 "The bootstrap never reached Play; see BootstrapSequenceTests.");
-
-            SaveSystem save = FindSingle<SaveSystem>();
-            SetField(save, "_storage", new JsonSaveStorage(_savePath));
-            save.Load();
-
-            // Gossip applies a restore over what it has, so zeroing the four of them is what puts the
-            // village back to neutral. Zero rows are dropped by everyone, the HUD included.
-            EventBus.Publish(new OnRelationshipsRestored
-            {
-                npcIds   = new[] { Blacksmith, "son", "villager", "elder" },
-                aboutIds = new[] { Customer, Customer, Customer, Customer },
-                values   = new[] { 0, 0, 0, 0 }
-            });
 
             // Whatever the boot itself logged is not what these tests are about.
             _warnings.Clear();
@@ -265,15 +241,6 @@ namespace GosipSimulator.Tests
             Assert.AreEqual(1, found.Length, $"Expected exactly one {typeof(T).Name}.");
 
             return found[0];
-        }
-
-        private static void SetField(object target, string name, object value)
-        {
-            FieldInfo field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            Assert.IsNotNull(field, $"{target.GetType().Name}.{name} was renamed or removed. Update this test seam.");
-
-            field.SetValue(target, value);
         }
 
         private static void DestroyAll<T>(T[] components) where T : Component

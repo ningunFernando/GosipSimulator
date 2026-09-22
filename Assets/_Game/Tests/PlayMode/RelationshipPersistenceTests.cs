@@ -1,8 +1,6 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -22,9 +20,10 @@ namespace GosipSimulator.Tests
     /// writes a row without knowing what a rumor is, and on the way back Save pushes
     /// OnRelationshipsRestored because Gossip cannot ask it anything (R3, R4).
     ///
-    /// Every test redirects the storage to a temporary file, so the player's real save is never read
-    /// past the boot that already happened and never written at all.
+    /// [IsolatedSave] boots every test into an empty temporary folder, so the player's real save is
+    /// never read or written, and "what is on disk" always means what the test put there.
     /// </summary>
+    [IsolatedSave]
     public class RelationshipPersistenceTests
     {
         private const string BootstrapScene = "Scene_Bootstrap";
@@ -34,8 +33,7 @@ namespace GosipSimulator.Tests
 
         private readonly List<OnRumorSpread> _rumors = new List<OnRumorSpread>();
 
-        private string _tempFolder;
-        private string _savePath;
+        private static string SavePath => IsolatedSaveAttribute.SavePath;
 
         // ────────────────────────────────
         // SETUP AND TEARDOWN
@@ -46,10 +44,6 @@ namespace GosipSimulator.Tests
         public void SetUp()
         {
             _rumors.Clear();
-
-            _tempFolder = Path.Combine(Path.GetTempPath(), "GosipSimulatorTests_" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(_tempFolder);
-            _savePath = Path.Combine(_tempFolder, "save.json");
         }
 
         [TearDown]
@@ -62,8 +56,6 @@ namespace GosipSimulator.Tests
             DestroyAll(Object.FindObjectsByType<SaveSystem>());
 
             EventBus.ClearAllSubscriptions();
-
-            if (Directory.Exists(_tempFolder)) Directory.Delete(_tempFolder, true);
         }
 
         #endregion
@@ -76,7 +68,7 @@ namespace GosipSimulator.Tests
         [UnityTest]
         public IEnumerator AWitnessedRobbery_EndsUpAsRowsInTheSaveFile()
         {
-            yield return BootRedirectedToTemp();
+            yield return Boot();
 
             GossipManager manager = FindSingle<GossipManager>();
             SaveSystem    save    = FindSingle<SaveSystem>();
@@ -95,16 +87,16 @@ namespace GosipSimulator.Tests
 
             yield return WaitUntilTheVillageIsQuiet(manager);
 
-            Assert.IsFalse(File.Exists(_savePath), "The save was written before anything asked for it.");
+            Assert.IsFalse(File.Exists(SavePath), "The save was written before anything asked for it.");
 
             // Pausing is the in game checkpoint, and the save is dirty because opinions moved.
             EventBus.Publish(new OnPauseRequested());
             yield return null;
 
             Assert.AreEqual(GameState.Paused, GameManager.Instance.CurrentState);
-            Assert.IsTrue(File.Exists(_savePath), "Pausing with moved opinions did not write the save.");
+            Assert.IsTrue(File.Exists(SavePath), "Pausing with moved opinions did not write the save.");
 
-            SaveData stored = new JsonSaveStorage(_savePath).Load();
+            SaveData stored = new JsonSaveStorage(SavePath).Load();
 
             Assert.AreEqual(SaveData.CURRENT_VERSION, stored.saveVersion, "The file was written at the wrong version.");
 
@@ -125,7 +117,7 @@ namespace GosipSimulator.Tests
         [UnityTest]
         public IEnumerator OpinionsOnDisk_AreRestoredToTheVillageOnBootstrap()
         {
-            yield return BootRedirectedToTemp();
+            yield return Boot();
 
             GossipManager manager = FindSingle<GossipManager>();
             SaveSystem    save    = FindSingle<SaveSystem>();
@@ -162,7 +154,7 @@ namespace GosipSimulator.Tests
         [UnityTest]
         public IEnumerator RestoringASave_DoesNotMarkItDirtyAgain()
         {
-            yield return BootRedirectedToTemp();
+            yield return Boot();
 
             SaveSystem save = FindSingle<SaveSystem>();
 
@@ -178,7 +170,7 @@ namespace GosipSimulator.Tests
             EventBus.Publish(new OnBootstrapComplete());
             yield return null;
 
-            File.Delete(_savePath);
+            File.Delete(SavePath);
 
             // If Restore had published OnRelationshipChanged per row, Save would have marked itself
             // dirty and a freshly loaded game would rewrite its own file on the next pause. That is
@@ -187,13 +179,13 @@ namespace GosipSimulator.Tests
             yield return null;
 
             Assert.AreEqual(GameState.Paused, GameManager.Instance.CurrentState);
-            Assert.IsFalse(File.Exists(_savePath), "Loading a game marked it dirty and it rewrote itself on pause.");
+            Assert.IsFalse(File.Exists(SavePath), "Loading a game marked it dirty and it rewrote itself on pause.");
         }
 
         [UnityTest]
         public IEnumerator AVersion1Save_IsMigratedAndBackedUpInsteadOfReplaced()
         {
-            yield return BootRedirectedToTemp();
+            yield return Boot();
 
             SaveSystem save = FindSingle<SaveSystem>();
 
@@ -201,7 +193,7 @@ namespace GosipSimulator.Tests
             // relationships field at all. Building it from the current class could not reproduce that.
             const string v1Json = "{\"saveVersion\":1,\"currency\":250,\"totalEarned\":900}";
 
-            File.WriteAllText(_savePath, v1Json);
+            File.WriteAllText(SavePath, v1Json);
 
             save.Load();
 
@@ -210,12 +202,12 @@ namespace GosipSimulator.Tests
             Assert.AreEqual(0, save.Relationships.Count, "A v1 save cannot have had opinions.");
 
             // R14: migrated, never deleted. The old file is kept beside the new one.
-            Assert.IsTrue(File.Exists(_savePath + ".v1.bak"), "The v1 file was migrated without a backup.");
+            Assert.IsTrue(File.Exists(SavePath + ".v1.bak"), "The v1 file was migrated without a backup.");
 
             // Byte for byte, because Backup copies the file rather than reserialising the object.
             // That matters: a rewritten backup would be the migrated shape wearing the old version
             // number, and the original the player actually had would be gone.
-            Assert.AreEqual(v1Json, File.ReadAllText(_savePath + ".v1.bak"),
+            Assert.AreEqual(v1Json, File.ReadAllText(SavePath + ".v1.bak"),
                 "The backup is not a faithful copy of the original v1 file.");
 
             yield return null;
@@ -230,7 +222,7 @@ namespace GosipSimulator.Tests
 
         private const float SpeedUp = 20f;
 
-        private IEnumerator BootRedirectedToTemp()
+        private IEnumerator Boot()
         {
             SceneManager.LoadScene(BootstrapScene);
             yield return null;
@@ -246,11 +238,9 @@ namespace GosipSimulator.Tests
 
             Assert.IsTrue(GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.Play,
                 "The bootstrap never reached Play; see BootstrapSequenceTests.");
-
-            SetField(FindSingle<SaveSystem>(), "_storage", new JsonSaveStorage(_savePath));
         }
 
-        private void WriteSave(SaveData data) => new JsonSaveStorage(_savePath).Save(data);
+        private static void WriteSave(SaveData data) => new JsonSaveStorage(SavePath).Save(data);
 
         private static IEnumerator WaitUntilTheVillageIsQuiet(GossipManager manager)
         {
@@ -272,15 +262,6 @@ namespace GosipSimulator.Tests
             Assert.AreEqual(1, found.Length, $"Expected exactly one {typeof(T).Name}.");
 
             return found[0];
-        }
-
-        private static void SetField(object target, string name, object value)
-        {
-            FieldInfo field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            Assert.IsNotNull(field, $"{target.GetType().Name}.{name} was renamed or removed. Update this test seam.");
-
-            field.SetValue(target, value);
         }
 
         private static void DestroyAll<T>(T[] components) where T : Component

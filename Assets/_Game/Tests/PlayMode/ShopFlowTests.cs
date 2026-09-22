@@ -1,8 +1,5 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -28,9 +25,10 @@ namespace GosipSimulator.Tests
     /// the blacksmith, who stands at (-9, 1, 7) and is the only NPC close enough to see it. The shop
     /// sells one horseshoe at a base price of 5, 2% per point of opinion, refusing at -30.
     ///
-    /// Every test starts from a known opinion by restoring the blacksmith to zero, and from zero
-    /// currency by reloading a fresh temporary save, so nothing depends on the player's real file.
+    /// [IsolatedSave] boots every test into an empty temporary save, so the blacksmith starts neutral,
+    /// the purse starts at zero, and nothing depends on the player's real file.
     /// </summary>
+    [IsolatedSave]
     public class ShopFlowTests
     {
         private const string BootstrapScene = "Scene_Bootstrap";
@@ -49,8 +47,6 @@ namespace GosipSimulator.Tests
         private readonly List<OnPurchaseSettled>  _settled  = new List<OnPurchaseSettled>();
 
         private Keyboard _keyboard;
-        private string   _tempFolder;
-        private string   _savePath;
 
 #if UNITY_EDITOR
         private InputSettings.EditorInputBehaviorInPlayMode _previousBehavior;
@@ -77,10 +73,6 @@ namespace GosipSimulator.Tests
                 InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
 #endif
             _keyboard = InputSystem.AddDevice<Keyboard>();
-
-            _tempFolder = Path.Combine(Path.GetTempPath(), "GosipSimulatorTests_" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(_tempFolder);
-            _savePath = Path.Combine(_tempFolder, "save.json");
         }
 
         [TearDown]
@@ -98,8 +90,6 @@ namespace GosipSimulator.Tests
             DestroyAll(Object.FindObjectsByType<SaveSystem>());
 
             EventBus.ClearAllSubscriptions();
-
-            if (Directory.Exists(_tempFolder)) Directory.Delete(_tempFolder, true);
         }
 
         #endregion
@@ -123,12 +113,16 @@ namespace GosipSimulator.Tests
         }
 
         [UnityTest]
-        public IEnumerator ARestore_TellsListenersTheStartingTerms()
+        public IEnumerator ARestore_EvenAnEmptyOne_TellsListenersTheTerms()
         {
             yield return Boot();
 
-            // Boot restored the blacksmith to zero, and a restore always publishes, even when the
-            // price did not move, so the HUD starts from real terms instead of an assumption.
+            // What Save publishes for a fresh game: null arrays. A restore always publishes the
+            // terms, even when the price did not move, so the HUD starts from real terms instead of
+            // an assumption. The boot already did this once, before the sinks were listening.
+            EventBus.Publish(new OnRelationshipsRestored());
+            yield return null;
+
             Assert.AreEqual(1, _terms.Count, "The restore did not publish the starting terms.");
             Assert.AreEqual(Blacksmith, _terms[0].shopkeeperId);
             Assert.AreEqual(Customer, _terms[0].customerId);
@@ -252,15 +246,11 @@ namespace GosipSimulator.Tests
         [UnityTest]
         public IEnumerator AGrudgeInTheSaveFile_IsChargedFromTheStart()
         {
-            yield return Boot();
-
-            SaveSystem save = FindSingle<SaveSystem>();
-            Shopkeeper shop = FindSingle<Shopkeeper>();
-
-            // Restoring is silent on purpose (no OnRelationshipChanged per row), so this is the path
-            // that would have left a loaded grudge invisible until the next rumor if the shop only
-            // listened to changes.
-            new JsonSaveStorage(_savePath).Save(new SaveData
+            // Written before the boot, so the real sequence loads it: Bootstrapper calls Load, and
+            // Save restores it on OnBootstrapComplete. Restoring is silent on purpose (no
+            // OnRelationshipChanged per row), so this is the path that would have left a loaded
+            // grudge invisible until the next rumor if the shop only listened to changes.
+            new JsonSaveStorage(IsolatedSaveAttribute.SavePath).Save(new SaveData
             {
                 relationships = new List<RelationshipRow>
                 {
@@ -268,9 +258,9 @@ namespace GosipSimulator.Tests
                 }
             });
 
-            save.Load();
-            EventBus.Publish(save.Relationships.ToRestoredPayload());
-            yield return null;
+            yield return Boot();
+
+            Shopkeeper shop = FindSingle<Shopkeeper>();
 
             Assert.AreEqual(-20, shop.Opinion, "The saved opinion never reached the shop.");
             Assert.AreEqual(140, shop.Terms.Percent);
@@ -296,7 +286,7 @@ namespace GosipSimulator.Tests
             yield return null;
 
             Assert.AreEqual(GameState.Paused, GameManager.Instance.CurrentState);
-            Assert.AreEqual(2, new JsonSaveStorage(_savePath).Load().currency, "The spending never reached the file.");
+            Assert.AreEqual(2, new JsonSaveStorage(IsolatedSaveAttribute.SavePath).Load().currency, "The spending never reached the file.");
         }
 
         #endregion
@@ -307,8 +297,8 @@ namespace GosipSimulator.Tests
         #region Helpers
 
         /// <summary>
-        /// Boots the real game, then points Save at a temporary file and reloads it so currency starts
-        /// at zero, and restores the blacksmith's opinion to zero so the price starts at the base.
+        /// Boots the real game into the test's save and subscribes the sinks. Anything published
+        /// during the boot itself, such as the starting terms, happened before they were listening.
         /// </summary>
         private IEnumerator Boot()
         {
@@ -327,17 +317,10 @@ namespace GosipSimulator.Tests
             Assert.IsTrue(GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.Play,
                 "The bootstrap never reached Play; see BootstrapSequenceTests.");
 
-            SaveSystem save = FindSingle<SaveSystem>();
-            SetField(save, "_storage", new JsonSaveStorage(_savePath));
-            save.Load();
-
-            // Sinks before the restore, so the starting terms published by it are captured too.
             EventBus.Subscribe<OnShopTermsChanged>(_terms.Add);
             EventBus.Subscribe<OnPurchaseApproved>(_approved.Add);
             EventBus.Subscribe<OnPurchaseRefused>(_refused.Add);
             EventBus.Subscribe<OnPurchaseSettled>(_settled.Add);
-
-            RestoreBlacksmithOpinion(0);
         }
 
         /// <summary>
@@ -420,15 +403,6 @@ namespace GosipSimulator.Tests
             Assert.AreEqual(1, found.Length, $"Expected exactly one {typeof(T).Name}.");
 
             return found[0];
-        }
-
-        private static void SetField(object target, string name, object value)
-        {
-            FieldInfo field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            Assert.IsNotNull(field, $"{target.GetType().Name}.{name} was renamed or removed. Update this test seam.");
-
-            field.SetValue(target, value);
         }
 
         private static void DestroyAll<T>(T[] components) where T : Component

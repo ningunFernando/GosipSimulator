@@ -63,7 +63,7 @@ hito 10: la assembly `Shop` y el mostrador del herrero, y el hito 11: el HUD de 
 | Suite | Tests | Errores en consola | Warnings |
 |---|---|---|---|
 | EditMode | 237 en verde | 6 | 7 |
-| PlayMode | 48 en verde | 7 | 2 |
+| PlayMode | 51 en verde | 7 | 2 |
 
 Los 6 y los 7 errores son los esperados: cada test de un caso de error declara su mensaje con
 `LogAssert.Expect`. Los dos que subieron el número de PlayMode de 5 a 7 son
@@ -82,9 +82,9 @@ hitos 10 y 11 añadieron trece tests que arrancan el juego y el número se qued�
 De los 237 de EditMode, **70 son heredados de la plantilla y 167 son del juego**: 29 de
 `RelationshipGraph`, 22 de `RumorPropagator`, 24 de `GossipService`, 20 de `RelationshipStore`, 20 de
 `PerceptionResolver`, 15 de `InteractionResolver`, 18 de `PricingPolicy`, 17 nuevos en
-`DebugHudModelTests` y 2 nuevos en `SaveMigrationsTests`. De los 48 de PlayMode, **12 son heredados y
-36 nuevos**: 6 en `GossipFlowTests`, 4 en `RelationshipPersistenceTests`, 6 en `PerceptionFlowTests`, 7
-en `InteractionFlowTests`, 9 en `ShopFlowTests` y 4 en `HudFlowTests`.
+`DebugHudModelTests` y 2 nuevos en `SaveMigrationsTests`. De los 51 de PlayMode, **12 son heredados y
+39 nuevos**: 6 en `GossipFlowTests`, 4 en `RelationshipPersistenceTests`, 6 en `PerceptionFlowTests`, 7
+en `InteractionFlowTests`, 9 en `ShopFlowTests`, 4 en `HudFlowTests` y 3 en `SaveIsolationTests`.
 
 **Del chisme existe la capa de dominio y su adapter.** En `Runtime/Gosip/`, cinco tipos con la forma de
 cuatro capas que ya usan `Save` y `Pickups`: `RelationshipGraph` y `SocialGraph` son datos puros,
@@ -218,6 +218,41 @@ builds.** En un build de release, `OnRumorSpread`, `OnShopTermsChanged`, `OnPurc
 `OnPurchaseSettled` vuelven a avisar de que se publican sin suscriptores. No se silencia: es cierto, y
 dice que el juego todavía no tiene interfaz de jugador (A1). La letra del HUD bajó de 32 a 24 puntos
 porque la aldea añade una docena de líneas.
+
+**Los tests de PlayMode guardan en una carpeta propia, por una costura interna de `SaveSystem`.** El
+problema era de orden: todos arrancan el juego de verdad, y `Bootstrapper` instancia `SaveSystem` y
+llama a `Load` en la misma secuencia, así que cuando un test encontraba el componente para redirigirlo
+ya se había leído el archivo real y sus opiniones ya estaban restauradas en la aldea. Con opiniones
+guardadas por jugar, `GossipFlowTests` e `InteractionFlowTests` afirmaban -10 y encontraban -60.
+
+La solución tiene tres piezas:
+
+- `SaveSystem.FolderOverride`, un `static` **`internal`** que `Awake` lee antes de construir el
+  almacenamiento. Solo lo alcanza `GosipSimulator.Tests.PlayMode`, por `InternalsVisibleTo` en
+  `Runtime/Save/AssemblyInfo.cs`, así que ningún código de juego puede desviar el guardado. Se pone a
+  `null` con `[RuntimeInitializeOnLoadMethod(SubsystemRegistration)]` al empezar cada sesión de Play:
+  con las *Enter Play Mode Options* de este proyecto los `static` sobreviven entre sesiones, y una
+  corrida abortada dejaría si no las partidas reales yendo a una carpeta temporal ya borrada.
+- `[IsolatedSave]`, un atributo de clase de los tests (`IOuterUnityTestAction`) que crea una carpeta
+  vacía por test y fija la costura **antes** del `[SetUp]`, y la borra **después** del `[TearDown]`,
+  cuando los managers ya están destruidos. Los tests leen lo que se guardó con
+  `IsolatedSaveAttribute.SavePath`.
+- `SaveIsolationTests`, que falla si alguna clase de PlayMode no lleva el atributo. Hace falta porque
+  este Test Framework **ignora las acciones a nivel de assembly** para cada test (`TestActionCommand`
+  solo mira los atributos del método y de la clase), así que no hay forma de ponerlo una vez para
+  todos.
+
+Se descartó que `Bootstrapper` leyera la ruta de una fuente inyectable (un campo en `GameConfigSO` o en
+el prefab de `SaveSystem`): cambiar un asset desde un test en Play Mode lo cambia en el proyecto, y
+`Core` pasaría a saber de rutas de archivo que son de `Save`. También se descartó un aviso al usar la
+costura: saldría en cada test de PlayMode y enterraría los warnings que la cuenta de consola vigila;
+queda como `Log.Trace`.
+
+Comprobado de la forma que importa, no solo en verde: con opiniones de -50 a -10 escritas en el
+`save.json` real, el código anterior dio 11 fallos de 48 y el nuevo 51 de 51, y el archivo quedó
+idéntico byte a byte. `ShopFlowTests` y `HudFlowTests` dejaron de publicar la restauración neutra con
+la que lo esquivaban, y `AGrudgeInTheSaveFile_IsChargedFromTheStart` escribe ahora el rencor antes de
+arrancar, así que lo carga la secuencia real en vez de un `Load` manual.
 
 **Ni push ni PR desde el agente.** El trabajo se deja commiteado y verificado en local, y Fernando hace
 el push y abre el PR. Preguntar antes de empujar, de abrir un PR o de borrar ramas o worktrees.
@@ -447,11 +482,8 @@ placeholders. Si diverge de la de HamsterBall, da igual, ninguna se va a volver 
      nuevo en `Data` y que `Gossip` las siembre **solo en una partida nueva y publicándolas** como
      cambios reales, para que `Save` las escriba: como el guardado es disperso, una opinión que
      vuelve a cero no deja fila, y si se sembrara en cada arranque reaparecería el valor inicial.
-   - **Que los tests de PlayMode no lean el `save.json` real.** Todos arrancan el juego de verdad, y
-     `Bootstrapper` carga el archivo antes de que el test pueda redirigir el almacenamiento. En cuanto
-     se juega y se pausa con opiniones movidas, `GossipFlowTests` e `InteractionFlowTests` afirman
-     números desplazados por lo guardado. `ShopFlowTests` y `HudFlowTests` lo esquivan publicando una
-     restauración neutra al arrancar; la solución de raíz es una costura de test antes de `Load`.
+   - **Resuelto el 2026-09-21: los tests de PlayMode ya no leen ni escriben el `save.json` real.** El
+     porqué y cómo están en [Decisiones tomadas](#decisiones-tomadas).
 5. **La moneda sale como `unknown` en el HUD hasta el primer cambio.** `Save` no publica
    `OnProgressChanged` al cargar, porque su propio `MarkDirty` lo escucha y la partida se reescribiría
    sola en la primera pausa. Con la tienda esto se nota más, porque el jugador quiere saber si le llega.
@@ -484,3 +516,6 @@ placeholders. Si diverge de la de HamsterBall, da igual, ninguna se va a volver 
   tener consumidor, no se escribe.
 - Los eventos nuevos van en `Assets/_Game/Runtime/Core/Events/GameEvents.cs`, como structs, con su
   región y su XML doc diciendo quién los publica y quién los escucha.
+- Toda clase nueva de tests de PlayMode lleva `[IsolatedSave]`, arranque o no el juego;
+  `SaveIsolationTests` falla si falta. Lo que el juego guardó se lee en `IsolatedSaveAttribute.SavePath`,
+  y nunca se toca `SaveSystem._storage` por reflexión.

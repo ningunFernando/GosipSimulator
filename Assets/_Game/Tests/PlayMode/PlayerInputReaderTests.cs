@@ -10,6 +10,7 @@ namespace GosipSimulator.Tests
     /// The reader's failure path. Reading real input is covered end to end in PlayerMoverTests and
     /// PauseFlowTests. PlayMode because Awake and OnEnable only run there.
     /// </summary>
+    [IsolatedSave]
     public class PlayerInputReaderTests
     {
         private static readonly Regex NoMoveAction =

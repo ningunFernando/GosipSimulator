@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
@@ -30,6 +29,7 @@ namespace GosipSimulator.Tests
     /// the villager at (9, 1, -7) and the elder at (-10, 1, -10), all with a sight range of 6. Only
     /// the son can see the middle of the map, which is what makes the blacksmith's case work.
     /// </summary>
+    [IsolatedSave]
     public class PerceptionFlowTests
     {
         private const string BootstrapScene = "Scene_Bootstrap";
@@ -41,9 +41,6 @@ namespace GosipSimulator.Tests
         private readonly List<OnActionWitnessed> _witnessed = new List<OnActionWitnessed>();
         private readonly List<OnRumorSpread>     _rumors    = new List<OnRumorSpread>();
 
-        private string _tempFolder;
-        private string _savePath;
-
         // ────────────────────────────────
         // SETUP AND TEARDOWN
         // ────────────────────────────────
@@ -54,10 +51,6 @@ namespace GosipSimulator.Tests
         {
             _witnessed.Clear();
             _rumors.Clear();
-
-            _tempFolder = Path.Combine(Path.GetTempPath(), "GosipSimulatorTests_" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(_tempFolder);
-            _savePath = Path.Combine(_tempFolder, "save.json");
         }
 
         [TearDown]
@@ -70,8 +63,6 @@ namespace GosipSimulator.Tests
             DestroyAll(Object.FindObjectsByType<SaveSystem>());
 
             EventBus.ClearAllSubscriptions();
-
-            if (Directory.Exists(_tempFolder)) Directory.Delete(_tempFolder, true);
         }
 
         #endregion
@@ -212,9 +203,9 @@ namespace GosipSimulator.Tests
             EventBus.Publish(new OnPauseRequested());
             yield return null;
 
-            Assert.IsTrue(File.Exists(_savePath), "Pausing after a theft did not write the save.");
+            Assert.IsTrue(File.Exists(IsolatedSaveAttribute.SavePath), "Pausing after a theft did not write the save.");
 
-            var onDisk = new RelationshipStore(new JsonSaveStorage(_savePath).Load());
+            var onDisk = new RelationshipStore(new JsonSaveStorage(IsolatedSaveAttribute.SavePath).Load());
 
             Assert.AreEqual(3, onDisk.Count, "The file does not hold one row per moved opinion.");
             Assert.AreEqual(-10, onDisk.Get("son", Actor));
@@ -245,9 +236,6 @@ namespace GosipSimulator.Tests
 
             Assert.IsTrue(GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.Play,
                 "The bootstrap never reached Play; see BootstrapSequenceTests.");
-
-            // Opinions mark the save dirty, so without this a pause would write the player's file.
-            SetField(FindSingle<SaveSystem>(), "_storage", new JsonSaveStorage(_savePath));
         }
 
         /// <summary>
@@ -300,15 +288,6 @@ namespace GosipSimulator.Tests
             Assert.AreEqual(1, found.Length, $"Expected exactly one {typeof(T).Name}.");
 
             return found[0];
-        }
-
-        private static void SetField(object target, string name, object value)
-        {
-            FieldInfo field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            Assert.IsNotNull(field, $"{target.GetType().Name}.{name} was renamed or removed. Update this test seam.");
-
-            field.SetValue(target, value);
         }
 
         private static void DestroyAll<T>(T[] components) where T : Component

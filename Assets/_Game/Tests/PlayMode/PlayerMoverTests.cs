@@ -20,6 +20,7 @@ namespace GosipSimulator.Tests
     /// in Scene_Game has to move, but only once the bootstrap has put the game in Play. Also the
     /// failure path: a mover missing its configuration disables itself with a clear error (R8, R9).
     /// </summary>
+    [IsolatedSave]
     public class PlayerMoverTests
     {
         private const string BootstrapScene = "Scene_Bootstrap";

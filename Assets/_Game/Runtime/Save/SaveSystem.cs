@@ -23,6 +23,33 @@ namespace GosipSimulator.Save
 
         #endregion
 
+        // ────────────────────────────────
+        // TEST SEAM
+        // ────────────────────────────────
+        #region Test Seam
+
+        /// <summary>
+        /// A folder to save into instead of Application.persistentDataPath, read once in Awake. It
+        /// exists for the PlayMode tests and only they can reach it (InternalsVisibleTo in
+        /// AssemblyInfo.cs). They have to set it before loading Scene_Bootstrap: the Bootstrapper
+        /// calls Load in the same sequence that instantiates this prefab, so by the time a test
+        /// could find this component the player's real save has already been read and restored.
+        /// </summary>
+        internal static string FolderOverride { get; set; }
+
+        /// <summary>
+        /// Enter Play Mode Options keep statics alive between Play sessions in this project, so a
+        /// test run aborted before its cleanup would otherwise send the next real session's saves
+        /// to a deleted temp folder. Cleared as every Play session starts; tests set it afterwards.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ClearFolderOverride()
+        {
+            FolderOverride = null;
+        }
+
+        #endregion
+
         private ISaveStorage      _storage;
         private SaveMigrations    _migrations;
         private ProgressService   _progress;
@@ -42,7 +69,17 @@ namespace GosipSimulator.Save
                 throw new InvalidOperationException("[SaveSystem] Save file name is empty.");
             }
 
-            _storage = new JsonSaveStorage(Path.Combine(Application.persistentDataPath, _fileName));
+            string folder = Application.persistentDataPath;
+
+            if (!string.IsNullOrEmpty(FolderOverride))
+            {
+                // Traced, not warned: the redirect is deliberate, and a warning here would fire in
+                // every PlayMode test and bury the ones the console count exists to catch.
+                folder = FolderOverride;
+                Log.Trace($"[SaveSystem] Saving to '{folder}' instead of persistentDataPath (test seam).");
+            }
+
+            _storage = new JsonSaveStorage(Path.Combine(folder, _fileName));
             _migrations = new SaveMigrations();
         }
 

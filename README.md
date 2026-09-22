@@ -14,7 +14,7 @@ fallo que ocurrió allí.
 **Estado (2026-09-21).** El fork está hecho y renombrado de punta a punta, y la documentación
 describe este proyecto y no la plantilla. **Los once hitos del plan están cerrados**: el chisme tiene
 dominio, configuración y adapters, la aldea tiene ojos, el jugador tiene verbos, el herrero cobra según
-lo que ha oído y el HUD de desarrollo lo enseña todo. Las dos suites pasan, 237 en EditMode y 48 en
+lo que ha oído y el HUD de desarrollo lo enseña todo. Las dos suites pasan, 237 en EditMode y 51 en
 PlayMode.
 
 **El juego que promete el primer párrafo ya se puede jugar.** Los hitos 6 a 9 cerraron la cadena
@@ -126,14 +126,15 @@ Medido el 2026-09-21 en este repo, con el Editor abierto y el CLI de Unity MCP:
 | Suite | Tests | Errores esperados en consola | Warnings |
 |---|---|---|---|
 | EditMode | 237 en verde | 6 | 7 |
-| PlayMode | 48 en verde | 7 | 2 |
+| PlayMode | 51 en verde | 7 | 2 |
 
 De los 237 de EditMode, **70 vienen de la plantilla y 167 son del juego**: 29 de `RelationshipGraph`,
 22 de `RumorPropagator`, 24 de `GossipService`, 20 de `RelationshipStore`, 20 de `PerceptionResolver`,
 15 de `InteractionResolver`, 18 de `PricingPolicy`, 17 más en `DebugHudModelTests` por el HUD de la aldea
-y 2 más en `SaveMigrationsTests` desde que existe la migración real. De los 48 de PlayMode, **12 vienen
-de la plantilla y 36 son nuevos**: 6 en `GossipFlowTests`, 4 en `RelationshipPersistenceTests`, 6 en
-`PerceptionFlowTests`, 7 en `InteractionFlowTests`, 9 en `ShopFlowTests` y 4 en `HudFlowTests`. Los dos
+y 2 más en `SaveMigrationsTests` desde que existe la migración real. De los 51 de PlayMode, **12 vienen
+de la plantilla y 39 son nuevos**: 6 en `GossipFlowTests`, 4 en `RelationshipPersistenceTests`, 6 en
+`PerceptionFlowTests`, 7 en `InteractionFlowTests`, 9 en `ShopFlowTests`, 4 en `HudFlowTests` y 3 en
+`SaveIsolationTests`. Los dos
 últimos errores esperados de PlayMode salen de los dos tests que comprueban que una entrada mal
 formada se rechaza, uno en `GossipManager` y otro en `NpcRegistry`.
 
@@ -170,8 +171,10 @@ Y si la cuenta sale absurda (1 test en 4 ms, o 0 en PlayMode), el descubrimiento
 vacío por las *Enter Play Mode Options*. Ver [Una corrida de PlayMode con 0 tests no es
 verde](#dos-trampas-al-correr-tests-desde-la-terminal).
 
-**Los tests no tocan tu partida guardada.** Los de PlayMode leen el save real al arrancar, pero el que
-comprueba que pausar escribe el archivo lo redirige antes a una carpeta temporal.
+**Los tests no tocan tu partida guardada.** Cada clase de PlayMode lleva `[IsolatedSave]`, que antes de
+arrancar el juego apunta `SaveSystem` a una carpeta temporal vacía y la borra al terminar, así que ni se
+lee ni se escribe el `save.json` real. `SaveIsolationTests` falla si alguna clase lo olvida, y comprueba
+que un arranque lee y escribe esa carpeta y deja el archivo real intacto.
 
 ### Dos trampas al correr tests desde la terminal
 
@@ -376,7 +379,7 @@ En `Core`, nueve eventos de la aldea: `OnActionCommitted`, `OnActionWitnessed`, 
 `OnPurchaseRefused` y `OnPurchaseSettled` de la tienda. Son cuatro y no cinco: el plan contaba un evento
 para pedir la compra, y no hizo falta porque pedir es `OnActionCommitted`.
 
-Los 167 tests de EditMode del juego cubren los dominios y el texto del HUD, y los 36 de PlayMode los
+Los 167 tests de EditMode del juego cubren los dominios y el texto del HUD, y los 39 de PlayMode los
 adapters dentro de una escena real.
 
 El `GossipManager` vive en el objeto `SocialGraph` de `Scene_Game`, con los siete assets asignados. Si

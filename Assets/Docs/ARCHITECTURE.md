@@ -211,7 +211,7 @@ flowchart LR
 |---|---|---|
 | Infraestructura | `ISaveStorage`, `JsonSaveStorage` | Leer y escribir disco con escritura transaccional (`.tmp` y luego mover) |
 | Dominio | `ProgressService`, `RelationshipStore`, `SaveMigrations`, `SaveData`, `RelationshipRow` | Mutar el progreso y las opiniones validando invariantes; migrar versiones en cadena |
-| Adapter | `SaveSystem` | Ciclo de vida de Unity: `persistentDataPath`, pausa del juego y de la aplicación, eventos del bus |
+| Adapter | `SaveSystem` | Ciclo de vida de Unity: `persistentDataPath` (o la carpeta de un test, por una costura `internal`), pausa del juego y de la aplicación, eventos del bus |
 
 `RelationshipStore` es a las opiniones lo que `ProgressService` es a la moneda, y comparte su forma: C#
 puro, dueño de una invariante, probado en EditMode sin escena. La invariante aquí es la dispersión, la
@@ -399,17 +399,25 @@ sistemas están conectados. Los del chisme son nuevos y cubren solo lógica pura
 - **PlayMode** (escenas reales): el arranque completo desde `Scene_Bootstrap` y que los managers
   sobrevivan a él, que el HUD reciba los eventos, el error al entrar desde `Scene_Game`, un teclado
   virtual que mueve al jugador solo en `Play` y lo detiene al soltar, Esc que pausa, congela al jugador
-  y reanuda, y el ciclo de recolección completo, con el save redirigido a un archivo temporal. También
-  que `PlayerMover` y `PlayerInputReader` se deshabiliten con un error claro si les falta
-  configuración.
+  y reanuda, y el ciclo de recolección completo. También que `PlayerMover` y `PlayerInputReader` se
+  deshabiliten con un error claro si les falta configuración.
+
+**Ningún test de PlayMode lee ni escribe la partida real.** Todos arrancan el juego de verdad, y el
+`Bootstrapper` carga el save en la misma secuencia que instancia `SaveSystem`, antes de que un test
+pueda alcanzarlo. Por eso cada clase lleva `[IsolatedSave]`, que crea una carpeta vacía por test y la
+fija en `SaveSystem.FolderOverride` antes del `[SetUp]`. La costura es `internal`, visible solo para la
+assembly de tests de PlayMode, y se limpia al empezar cada sesión de Play porque las *Enter Play Mode
+Options* conservan los `static`. `SaveIsolationTests` falla si una clase olvida el atributo, que hay
+que poner clase a clase: este Test Framework no aplica a cada test las acciones declaradas en la
+assembly.
 
 El número de tests, su duración y los errores esperados en consola están en el `README.md`.
 
 **La tienda y el HUD de la aldea** tienen 18 casos de `PricingPolicy` y 17 de `DebugHudModel` en
 EditMode, y en PlayMode 9 en `ShopFlowTests` (del robo que el herrero solo oyó al precio nuevo, la
 compra desde la tecla, sin saldo, la negativa, un rencor cargado del archivo y el gasto escrito al
-pausar) y 4 en `HudFlowTests`. Los dos arrancan desde una opinión y una moneda conocidas publicando una
-restauración neutra y recargando un save temporal, porque el arranque ya leyó el `save.json` real.
+pausar) y 4 en `HudFlowTests`. Como todos los de PlayMode arrancan sobre un save vacío, el herrero
+empieza neutral y la moneda en cero sin que el test tenga que forzarlo.
 
 **El chisme tiene 75 casos de EditMode y 6 de PlayMode.** Los de EditMode cubren el dominio y corren
 contra el bus con sumideros en vez de suscriptores reales. Los 6 de PlayMode llegaron con el adapter, en
