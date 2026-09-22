@@ -23,9 +23,9 @@ sistema de chisme va en la última sección y en el `README.md`.
 
 ## Assemblies
 
-Once assemblies. La guía dibuja ocho y la plantilla traía ocho, pero no las mismas: aquí no hay
+Doce assemblies. La guía dibuja ocho y la plantilla traía ocho, pero no las mismas: aquí no hay
 `Camera` (fuera del alcance acordado) y sí hay `Pickups`, el módulo mínimo que da uso real al pool y al
-guardado, más `Gossip` y `Npcs`, los dos primeros propios de este juego. Todas usan el prefijo `GosipSimulator` y su
+guardado, más `Gossip`, `Npcs`, `Actions` y `Shop`, los cuatro propios de este juego. Todas usan el prefijo `GosipSimulator` y su
 namespace raíz coincide con el nombre de la assembly.
 
 | Assembly | Referencia | Contenido |
@@ -38,6 +38,7 @@ namespace raíz coincide con el nombre de la assembly.
 | `Gossip` | `Core`, `Data` | Opiniones entre NPCs y propagación de rumores, dominio y adapter. Vive en `Runtime/Gosip/`, con otra grafía que el nombre de la assembly |
 | `Npcs` | `Core`, `Data` | Identidad de los NPCs y percepción: quién presenció qué |
 | `Actions` | `Core`, `Data`, `Unity.InputSystem` | Los verbos del jugador. Valida y publica, no interpreta |
+| `Shop` | `Core`, `Data` | Lo que cobra el herrero según lo que ha oído, y cuándo deja de venderte |
 | `Debug` | `Core`, `Data`, `Player` | HUD de desarrollo. Solo compila con `UNITY_EDITOR \|\| DEVELOPMENT_BUILD` |
 | `Tests.EditMode` | todos los módulos | Tests de lógica pura, solo Editor |
 | `Tests.PlayMode` | todos los módulos, más `Unity.InputSystem` | Tests de extremo a extremo con escenas reales |
@@ -46,9 +47,9 @@ namespace raíz coincide con el nombre de la assembly.
    Debug              Tests.EditMode / Tests.PlayMode
      │                 (referencian todos los módulos)
      ↓
-   Player   Save   Pickups   Gossip   Npcs   Actions
-     │        │        │        │       │        │
-     └────────┴────────┼────────┴───────┴────────┘
+   Player   Save   Pickups   Gossip   Npcs   Actions   Shop
+     │        │        │        │       │        │        │
+     └────────┴────────┼────────┴───────┴────────┴────────┘
                           ↓
                         Core
                           ↓
@@ -56,7 +57,7 @@ namespace raíz coincide con el nombre de la assembly.
 ```
 
 Reglas del grafo (R3): `Data` no referencia nada del proyecto; `Core` solo a `Data`; los módulos de
-gameplay (`Player`, `Save`, `Pickups`, `Gossip`, `Npcs`, `Actions`) referencian `Core` y `Data` y
+gameplay (`Player`, `Save`, `Pickups`, `Gossip`, `Npcs`, `Actions`, `Shop`) referencian `Core` y `Data` y
 **nunca entre sí**;
 `Debug` y los tests son hojas. Cuando un módulo necesita a otro, la respuesta es un evento: `Pickups` no
 sabe que `Save` existe, solo publica `OnPickupCollected`.
@@ -146,26 +147,25 @@ suscriptores, lo que hace visible un bus decorativo (A1). Las suscripciones se h
 | `OnPauseRequested` | `PlayerInputReader`, con Esc o Start | `GameManager` (alterna `Play` y `Paused`) |
 | `OnPickupCollected` | `PickupSpawner`, cuando el jugador toca un pickup | `SaveSystem` (lo convierte en moneda) |
 | `OnProgressChanged` | `ProgressService`, tras mutar el progreso | `SaveSystem` (marca el save como sucio), `DebugHud` |
-| `OnActionCommitted` | `InteractionReader`, cuando el jugador actúa sobre algo al alcance | `NpcRegistry`, que resuelve quién estaba mirando |
+| `OnActionCommitted` | `InteractionReader`, cuando el jugador actúa sobre algo al alcance | `NpcRegistry`, que resuelve quién estaba mirando; `Shopkeeper`, que atiende la acción de comprar dirigida a su NPC |
 | `OnActionWitnessed` | `NpcRegistry`, un evento por testigo y del más cercano al más lejano | `GossipManager` |
-| `OnRelationshipChanged` | `GossipService`, solo si la opinión cambió de verdad | `SaveSystem`, que lo convierte en una fila persistida. Faltan `Shopkeeper` y `DebugHud` |
-| `OnRumorSpread` | `GossipService`, por cada salto que de verdad mueve a alguien | **nadie en runtime**; lo escuchará `DebugHud` |
-| `OnRelationshipsRestored` | `SaveSystem`, al llegar `OnBootstrapComplete` | `GossipManager` |
+| `OnRelationshipChanged` | `GossipService`, solo si la opinión cambió de verdad | `SaveSystem`, que lo convierte en una fila persistida; `Shopkeeper`, si es la opinión de su NPC sobre el cliente; `DebugHud` |
+| `OnRumorSpread` | `GossipService`, por cada salto que de verdad mueve a alguien | `DebugHud` |
+| `OnRelationshipsRestored` | `SaveSystem`, al llegar `OnBootstrapComplete` | `GossipManager`, `Shopkeeper` y `DebugHud`, los tres aplicándolo por encima de lo que tienen |
+| `OnShopTermsChanged` | `Shopkeeper`, con cada cambio de la opinión que sigue y siempre tras una restauración | `DebugHud` |
+| `OnPurchaseApproved` | `Shopkeeper`, cuando acepta vender a un precio | `SaveSystem`, que intenta cobrarlo |
+| `OnPurchaseRefused` | `Shopkeeper`, cuando la opinión está en el umbral de negativa o por debajo | `DebugHud` |
+| `OnPurchaseSettled` | `SaveSystem`, tras intentar cobrar una compra aprobada, se pagara o no | `DebugHud` |
 
-Desde el hito 9, cuatro de los cinco están conectados por los dos extremos y la cadena va sola:
-`InteractionReader` publica `OnActionCommitted`, `NpcRegistry` lo consume y publica `OnActionWitnessed`,
-`GossipManager` lo consume y `GossipService` publica `OnRelationshipChanged`, y `SaveSystem` lo consume
-y escribe. `OnRelationshipsRestored` va en el otro sentido, en cada arranque.
+Desde el hito 11 todos tienen productor y consumidor, y la cadena va sola de la tecla a la pantalla y al
+disco. `OnRelationshipsRestored` va en el otro sentido, en cada arranque.
 
-**El que queda suelto es `OnRumorSpread`: tiene productor y no tiene consumidor.** Hasta el hito 9 eso
-era gratis, porque nada publicaba acciones y el evento nunca salía. Ahora que el jugador puede robar de
-verdad, `EventBus` avisa de que se publica sin suscriptores cada vez que un rumor da un salto.
-
-Ese aviso no se silencia, y esa es la regla (A1): un bus decorativo tiene que ser distinguible de uno
-roto. Dice algo cierto y accionable, que el HUD de opinión del hito 11 todavía no aprovecha lo que el
-chisme ya está contando, y desaparece solo en cuanto ese HUD lo escuche. Los tests suscriben un
-sumidero antes de publicar nada, así que la consola de una corrida sigue limpia y su cuenta de warnings
-sigue valiendo como alarma.
+**Cuatro de ellos solo los escucha el HUD**, y el HUD solo compila en el Editor y en development builds.
+En un build de release `OnRumorSpread`, `OnShopTermsChanged`, `OnPurchaseRefused` y `OnPurchaseSettled`
+vuelven a avisar de que se publican sin suscriptores. Ese aviso no se silencia, y esa es la regla (A1):
+dice algo cierto, que el juego todavía no tiene interfaz de jugador, y desaparece cuando una la tenga.
+`HudFlowTests` hace la comprobación inversa en el Editor: no suscribe sumideros y falla si algo de la
+aldea se publica sin nadie escuchando.
 
 ### El ciclo de recolección
 
@@ -339,12 +339,47 @@ La acción `Interact` ya existía en `InputSystem_Actions`, heredada de la plant
 E y al botón norte del mando. **Lo que hubo que quitarle fue su interacción `Hold`**, que venía de
 fábrica y retrasaba `performed` unos 0.4 segundos. El motivo y cómo revertirlo están en `QWEN.md`.
 
+### Shop
+
+El cuarto módulo propio del juego, y el que convierte una opinión en algo que al jugador le cuesta.
+
+| Tipo | Clase | Responsabilidad |
+|---|---|---|
+| Dominio | `PricingPolicy` | Lo que se cobra a quien se tiene en tal opinión: un porcentaje por punto, redondeado hacia arriba, con un suelo de descuento y un umbral de negativa. Aritmética en `long` para no desbordar con opiniones fuera de rango |
+| Datos | `ShopTerms` | Porcentaje, precio y si se niega. Se compara por valor |
+| Adapter | `Shopkeeper` | Guarda su copia de una opinión (la de su NPC sobre el cliente), la recalcula con cada cambio y con cada restauración, y responde a la acción de comprar aprobando o negándose |
+
+Cuatro decisiones que no se ven en las firmas:
+
+- **Pedir la compra es una acción, no un evento propio.** El mostrador es un `Interactable` con
+  `Action_Trade`, así que la compra llega por `OnActionCommitted` como un robo y `Shop` no referencia
+  `Actions`. De paso pasa por la percepción: el herrero te ve comprar, y con `baseDelta: 0` no cambia
+  de opinión. El plan contaba cinco eventos de tienda y son cuatro por esto.
+- **La tienda decide el precio; `Save`, si hay saldo.** `OnPurchaseApproved` es un acuerdo, no una
+  venta. `SaveSystem` llama a `TrySpend` y responde con `OnPurchaseSettled` en los dos casos, porque una
+  compra sin saldo que acabara en silencio haría que el mostrador pareciera roto (R9).
+- **Precio y negativa son consecuencias separadas.** Un rumor encarece; solo una reputación cierra la
+  puerta. `ShopTerms` calcula el precio también cuando se niega, para que el HUD pueda decir cuánto te
+  costaría.
+- **Lo restaurado se aplica igual que en `Gossip`: por encima.** `GossipService.Restore` no publica
+  cambios, así que una tienda que solo escuchara `OnRelationshipChanged` cobraría el precio base a
+  quien cargó una partida con el herrero enfadado. Escucha también `OnRelationshipsRestored`, y siempre
+  publica sus condiciones tras él para que el HUD arranque con el precio real.
+
+El cliente es un campo de texto (`player`), como el `_actorId` de `InteractionReader`. Si alguna vez
+actúa un NPC contra el mostrador, la tienda lo avisa con un warning y no vende, en vez de fallar en
+silencio.
+
 ### Debug
 
 `DebugHud` usa **UI Toolkit** (la guía pide Canvas con TextMeshPro; la decisión está en `QWEN.md`).
 Un `UIDocument` con `PanelSettings_DebugHud` y un `Label` creado por código muestra si terminó el
-bootstrap, el estado actual y la moneda (desde el primer `OnProgressChanged`). La lógica del texto
-vive en `DebugHudModel`, en C# puro. Como el `Label` lo crea el script, en un build sin la assembly
+bootstrap, el estado actual y la moneda (desde el primer `OnProgressChanged`) y, desde el hito 11, la
+aldea: las opiniones con su motivo, los tres últimos saltos del rumor, lo que cobra cada tienda y cómo
+acabó la última compra. La lógica del texto vive en `DebugHudModel`, en C# puro. Las opiniones se
+listan ordenadas por id y no por llegada, para que la lista no se reordene cada vez que un rumor alcanza
+a alguien nuevo, y una opinión que vuelve a cero desaparece, con la misma regla dispersa que `Gossip` y
+`Save`. Como el `Label` lo crea el script, en un build sin la assembly
 `Debug` el `UIDocument` queda vacío.
 
 En un build de release, además, el log del player avisa de que el componente `DebugHud` no tiene
@@ -369,6 +404,12 @@ sistemas están conectados. Los del chisme son nuevos y cubren solo lógica pura
   configuración.
 
 El número de tests, su duración y los errores esperados en consola están en el `README.md`.
+
+**La tienda y el HUD de la aldea** tienen 18 casos de `PricingPolicy` y 17 de `DebugHudModel` en
+EditMode, y en PlayMode 9 en `ShopFlowTests` (del robo que el herrero solo oyó al precio nuevo, la
+compra desde la tecla, sin saldo, la negativa, un rencor cargado del archivo y el gasto escrito al
+pausar) y 4 en `HudFlowTests`. Los dos arrancan desde una opinión y una moneda conocidas publicando una
+restauración neutra y recargando un save temporal, porque el arranque ya leyó el `save.json` real.
 
 **El chisme tiene 75 casos de EditMode y 6 de PlayMode.** Los de EditMode cubren el dominio y corren
 contra el bus con sumideros en vez de suscriptores reales. Los 6 de PlayMode llegaron con el adapter, en
@@ -400,26 +441,12 @@ retoca `Robbery` o el decaimiento, el test falla y dice que la documentación de
 | R13 | Ningún `Debug.Log` fuera de `Log.cs` |
 | R14 | El save se migra, nunca se borra |
 
-## El sistema de chisme: lo que falta
+## El sistema de chisme: cómo encaja
 
-`Gossip` ya existe entero, dominio y adapter, y está descrito en [Módulos](#gossip). Esta sección cubre
-las otras tres assemblies y el recorrido completo, que es lo que le da trabajo a ese módulo. Va aquí
-porque cambia el grafo de assemblies y porque la restricción R3 obliga a una decisión concreta sobre
-cómo circula el estado.
-
-### La hoja que falta
-
-`Npcs` y `Actions` ya existen y están descritas más arriba. Queda una assembly, con `Core` y `Data`
-como únicas referencias del proyecto y sin referenciar a ninguna otra de gameplay. El grafo sigue
-siendo acíclico y `Debug` y los tests siguen siendo las únicas hojas que referencian todos los
-módulos.
-
-| Assembly | Referencia | Contenido previsto |
-|---|---|---|
-| `Shop` | `Core`, `Data` | Condiciones del herrero: multiplicador de precio y negativa |
-
-De `Gossip`, `Npcs` y `Actions` no falta nada: los hitos 6, 8 y 9 los dejaron corriendo en
-`Scene_Game`.
+Las cuatro assemblies del juego están descritas una a una en [Módulos](#gossip). Esta sección cubre el
+recorrido completo que las une y la decisión que R3 obliga a tomar sobre cómo circula el estado. Las
+cuatro son hojas sobre `Core` y `Data`, ninguna referencia a otra, y `Debug` y los tests siguen siendo
+las únicas que referencian todos los módulos.
 
 Dos grafos distintos, y conviene no mezclarlos:
 
@@ -431,31 +458,28 @@ Dos grafos distintos, y conviene no mezclarlos:
 
 ```mermaid
 flowchart LR
-    Input[PlayerInputReader] -->|Interact| Actions
+    Input[Interact] --> Actions
     Actions -->|OnActionCommitted| Npcs
+    Actions -->|OnActionCommitted de compra| Shop
     Npcs -->|OnActionWitnessed por testigo| Gossip
     Gossip -->|OnRelationshipChanged| Save
     Gossip -->|OnRelationshipChanged| Shop
-    Gossip -->|OnRumorSpread| HUD[DebugHud]
+    Gossip -->|OnRelationshipChanged| HUD[DebugHud]
+    Gossip -->|OnRumorSpread| HUD
     Shop -->|OnShopTermsChanged| HUD
+    Shop -->|OnPurchaseRefused| HUD
     Shop -->|OnPurchaseApproved| Save
+    Save -->|OnPurchaseSettled| HUD
     Save -->|OnProgressChanged| HUD
 ```
 
 Ninguna flecha es una referencia entre assemblies: todas son publicaciones en el bus (R4). `Actions`
-no sabe quién miraba, `Npcs` no sabe qué opina nadie de nadie, `Gossip` no sabe que existe una tienda
-y `Shop` no sabe cómo se propagó el rumor.
+no sabe quién miraba, `Npcs` no sabe qué opina nadie de nadie, `Gossip` no sabe que existe una tienda,
+`Shop` no sabe cómo se propagó el rumor ni cuánto dinero tienes, y `Save` no sabe por qué la herradura
+cuesta lo que cuesta.
 
-De las nueve flechas, **ocho siguen sin existir en una partida**. La que funciona es la última,
-`Save → HUD` por `OnProgressChanged`, que viene del ciclo de recolección heredado y no del chisme. El
-diagrama es el destino y no el estado: faltan los tres módulos que emiten o reciben las otras, y los
-cinco eventos de la tienda y las acciones que aún no se han definido en `Core` porque nada los
-publicaría.
-
-Lo que cambió con el hito 6 es el extremo de `Gossip`, que ya no es solo un contrato probado: hay un
-`GossipManager` vivo en la escena que recibe `OnActionWitnessed` de verdad y emite
-`OnRelationshipChanged` y `OnRumorSpread` de verdad, comprobado de extremo a extremo en PlayMode. Las
-flechas `Npcs → Gossip` y `Gossip → Save` tienen ya su mitad de `Gossip` construida y esperando.
+**Desde el hito 11 todas las flechas existen en una partida**, y `ShopFlowTests` y `HudFlowTests` las
+recorren en una escena real. El diagrama ya no es el destino sino el estado.
 
 ### La consecuencia de R3: el estado se empuja, no se tira
 
@@ -491,8 +515,9 @@ archivo en vez de volver a serializar el objeto.
 
 La simetría con lo que ya existía resultó ser exacta: igual que `SaveSystem` convierte
 `OnPickupCollected` en moneda sin que `Pickups` lo sepa, ahora convierte `OnRelationshipChanged` en una
-fila persistida sin que `Gossip` lo sepa. Lo que queda de esa frase es `OnPurchaseApproved` en un
-`TrySpend`, que llega con `Shop`.
+fila persistida sin que `Gossip` lo sepa. Desde el hito 10 la frase está completa: convierte
+`OnPurchaseApproved` en un `TrySpend` sin que `Shop` sepa qué saldo hay, y contesta con
+`OnPurchaseSettled`.
 
 Un detalle que solo se ve al escribirlo: `GossipService.Restore` tiene que seguir siendo silencioso. Si
 publicara un `OnRelationshipChanged` por fila, `SaveSystem` se marcaría sucio al cargar y la partida se

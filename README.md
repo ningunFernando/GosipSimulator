@@ -11,11 +11,11 @@ arranca los sistemas en un orden verificable. De ahí se heredan el andamiaje y 
 plantilla nace a su vez de la auditoría de un proyecto anterior (HamsterBall), y cada regla evita un
 fallo que ocurrió allí.
 
-**Estado (2026-09-20).** El fork está hecho y renombrado de punta a punta, y la documentación ya
-describe este proyecto y no la plantilla. Del chisme existe **la capa de dominio, su configuración y el
-adapter que la arranca**: el grafo de opiniones, el grafo social, la propagación de rumores, el servicio
-que publica, los ScriptableObjects, los assets de la aldea y el `GossipManager` que lo monta todo en
-`Scene_Game`. Las dos suites pasan, 145 en EditMode y 18 en PlayMode.
+**Estado (2026-09-21).** El fork está hecho y renombrado de punta a punta, y la documentación
+describe este proyecto y no la plantilla. **Los once hitos del plan están cerrados**: el chisme tiene
+dominio, configuración y adapters, la aldea tiene ojos, el jugador tiene verbos, el herrero cobra según
+lo que ha oído y el HUD de desarrollo lo enseña todo. Las dos suites pasan, 237 en EditMode y 48 en
+PlayMode.
 
 **El juego que promete el primer párrafo ya se puede jugar.** Los hitos 6 a 9 cerraron la cadena
 entera: pulsas E junto al cofre, te ve el hijo del herrero porque está a tres pasos, su opinión de ti
@@ -23,9 +23,11 @@ cae, el rumor viaja hasta el padre y hasta el aldeano perdiendo fuerza en cada s
 ha movido queda escrito en `save.json` y vuelve al arrancar. Un test de PlayMode recorre ese camino de
 una tecla a las filas en disco, cruzando cinco assemblies que no se referencian entre sí.
 
-Lo que falta es lo que hace visible todo eso: el herrero todavía no te cobra más (hito 10) y el HUD no
-muestra las opiniones (hito 11), así que de momento la consecuencia se lee en la consola y en el
-guardado. La sección [El sistema de chisme](#el-sistema-de-chisme) separa lo que existe de lo que falta.
+**Y tiene consecuencia.** El herrero no vio nada, pero el rumor le llegó: la herradura que antes costaba
+5 ahora cuesta 6, y con bastante mala fama deja de venderte. Todo se ve en el HUD sin abrir el
+depurador. Lo que queda son peticiones nuevas, fuera del plan original, y están en
+[`QWEN.md`](QWEN.md#pendientes). La sección [El sistema de chisme](#el-sistema-de-chisme) describe lo que
+existe.
 
 | Documento | Para qué sirve |
 |---|---|
@@ -56,13 +58,19 @@ guardado. La sección [El sistema de chisme](#el-sistema-de-chisme) separa lo qu
 **Ya se puede robar.** Al arrancar tienes el cofre a un paso: pulsa E y te verá el hijo del herrero,
 que está lo bastante cerca. Unos segundos después el padre se entera por él, y luego el aldeano. Al
 pozo, a la izquierda, hay que acercarse: desde el punto de salida queda fuera de alcance, y ayudar ahí
-mueve las opiniones en el otro sentido. Nada de esto se ve todavía sin depurador, porque el HUD de
-opinión es el hito 11; lo que sí se ve es la traza en la consola y las filas en `save.json`.
+mueve las opiniones en el otro sentido.
 
-Las esferas del escenario son pickups: al tocarlas suman moneda y reaparecen en su sitio a los 2
-segundos de juego (el contador se detiene en pausa). Arriba a la izquierda, el HUD de desarrollo
-muestra si terminó el bootstrap, el estado del juego y la moneda; solo existe en el Editor y en los
-development builds.
+**Y ya se puede comprar.** El mostrador está junto al herrero, al fondo a la izquierda, en
+`(-7, 0.5, 6)`. Pulsando E delante compras una herradura: a un desconocido le cuesta 5, cada punto de
+mala opinión la encarece un 2 % (redondeando a favor de la tienda) y cuando la opinión del herrero
+llega a -30 deja de venderte. Las monedas salen de las esferas del escenario, que son pickups: al
+tocarlas suman moneda y reaparecen en su sitio a los 2 segundos de juego (el contador se detiene en
+pausa).
+
+Arriba a la izquierda, el HUD de desarrollo muestra si terminó el bootstrap, el estado del juego, la
+moneda, quién opina qué de ti y por qué, los últimos tres saltos del rumor, lo que cobra el herrero y
+cómo acabó la última compra. Solo existe en el Editor y en los development builds. La moneda sale como
+`unknown` hasta el primer cambio, porque `Save` no la anuncia al cargar.
 
 La partida se guarda al pausar, si hay cambios, y al salir o mandar la aplicación a segundo plano. En
 macOS el archivo queda en `~/Library/Application Support/DefaultCompany/GosipSimulator/save.json`.
@@ -113,18 +121,19 @@ Desde la terminal, con el Editor abierto:
 La ruta absoluta no es manía: `~/.local/bin` no está en el PATH de un shell no interactivo en esta
 máquina. Ver [Unity MCP](#unity-mcp).
 
-Medido el 2026-09-20 en este repo, con el Editor abierto y el CLI de Unity MCP:
+Medido el 2026-09-21 en este repo, con el Editor abierto y el CLI de Unity MCP:
 
 | Suite | Tests | Errores esperados en consola | Warnings |
 |---|---|---|---|
-| EditMode | 202 en verde | 6 | 7 |
-| PlayMode | 35 en verde | 7 | 2 |
+| EditMode | 237 en verde | 6 | 7 |
+| PlayMode | 48 en verde | 7 | 2 |
 
-De los 202 de EditMode, **70 vienen de la plantilla y 132 son del juego**: 29 de `RelationshipGraph`,
+De los 237 de EditMode, **70 vienen de la plantilla y 167 son del juego**: 29 de `RelationshipGraph`,
 22 de `RumorPropagator`, 24 de `GossipService`, 20 de `RelationshipStore`, 20 de `PerceptionResolver`,
-15 de `InteractionResolver` y 2 más en `SaveMigrationsTests` desde que existe la migración real. De los
-35 de PlayMode, **12 vienen de la plantilla y 23 son nuevos**: 6 en `GossipFlowTests`, 4 en
-`RelationshipPersistenceTests`, 6 en `PerceptionFlowTests` y 7 en `InteractionFlowTests`. Los dos
+15 de `InteractionResolver`, 18 de `PricingPolicy`, 17 más en `DebugHudModelTests` por el HUD de la aldea
+y 2 más en `SaveMigrationsTests` desde que existe la migración real. De los 48 de PlayMode, **12 vienen
+de la plantilla y 36 son nuevos**: 6 en `GossipFlowTests`, 4 en `RelationshipPersistenceTests`, 6 en
+`PerceptionFlowTests`, 7 en `InteractionFlowTests`, 9 en `ShopFlowTests` y 4 en `HudFlowTests`. Los dos
 últimos errores esperados de PlayMode salen de los dos tests que comprueban que una entrada mal
 formada se rechaza, uno en `GossipManager` y otro en `NpcRegistry`.
 
@@ -279,15 +288,15 @@ otro rompe el emparejamiento, así que `isuzu-unity-cli upgrade` implica cambiar
 
 ## El sistema de chisme
 
-Cuatro assemblies nuevas, todas hoja sobre `Core` y `Data`, y sin referenciarse entre ellas (R3). Tres
-existen; falta una.
+Cuatro assemblies nuevas, todas hoja sobre `Core` y `Data`, y sin referenciarse entre ellas (R3). Las
+cuatro existen.
 
 | Assembly | De qué es dueña | Estado |
 |---|---|---|
 | `GosipSimulator.Gossip` | Opiniones, grafo social y propagación de rumores | Completa: dominio y adapter |
 | `GosipSimulator.Npcs` | Identidad de los NPCs y percepción: quién presenció qué | Completa: dominio y adapter |
 | `GosipSimulator.Actions` | Los verbos del jugador. Valida y publica, no interpreta | Completa: dominio y adapter |
-| `GosipSimulator.Shop` | Las condiciones del herrero: multiplicador de precio y negativa | No existe |
+| `GosipSimulator.Shop` | Las condiciones del herrero: multiplicador de precio y negativa | Completa: dominio y adapter |
 
 ### Lo que ya existe
 
@@ -331,14 +340,44 @@ y el pozo no: para ayudar hay que caminar.
 tabla, y un tipo que solo reenvía es el stub silencioso que R12 prohíbe. Lo que sí hacía falta era una
 regla de alcance con una respuesta definida cuando dos cosas están igual de cerca.
 
-En `Data`: `SocialTie`, `NpcDefinitionSO`, `GossipConfigSO` y `ActionDefinitionSO`, más siete assets. La
+En `Runtime/Shop/`, la consecuencia:
+
+| Tipo | Capa | Qué hace |
+|---|---|---|
+| `PricingPolicy` | dominio puro | Lo que cobra un tendero según su opinión de ti: un porcentaje por punto, redondeado hacia arriba, con un suelo de descuento y un umbral de negativa. Precio y negativa son independientes |
+| `ShopTerms` | datos puros | Porcentaje, precio y si se niega. Se compara por valor |
+| `Shopkeeper` | adapter | Guarda su copia de una opinión (la del herrero sobre el jugador), la recalcula con cada `OnRelationshipChanged` y con `OnRelationshipsRestored`, y responde a la acción de comprar aprobando o negándose |
+
+En `Scene_Game`: el objeto `Shop` con el `Shopkeeper` del herrero, y su hijo `Counter` en
+`(-7, 0.5, 6)` con `Action_Trade` contra el herrero. Solo el herrero, a 2.29, lo ve desde su sitio.
+
+**Comprar es una acción como robar.** El mostrador es un `Interactable` más, así que la compra viaja
+por el mismo `OnActionCommitted` y `Shop` nunca referencia `Actions` (R4). `Action_Trade` lleva
+`baseDelta: 0`: el herrero te ve comprar, `Gossip` lo recibe y no pasa nada, porque comprar no es
+noticia. Si algún día comprar tiene que mejorar la opinión, es cambiar ese número.
+
+**Que el herrero acepte no significa que puedas pagar.** `Shopkeeper` publica `OnPurchaseApproved` con
+el precio y ahí termina lo suyo; `SaveSystem`, que es dueño de la moneda, intenta cobrar y publica
+`OnPurchaseSettled` diciendo si se pagó. La tienda no sabe tu saldo y el guardado no sabe por qué el
+precio es ese (R7). Una compra que no se puede pagar acaba en un evento y no en silencio, porque si no
+pulsar E en el mostrador parecería roto.
+
+**La tienda también lee lo restaurado, no solo los cambios.** `GossipService.Restore` es silencioso a
+propósito, y un `Shopkeeper` que solo escuchara `OnRelationshipChanged` cobraría el precio base a quien
+cargó una partida con el herrero enfadado hasta el siguiente rumor. Por eso escucha también
+`OnRelationshipsRestored`, y lo aplica igual que `Gossip`: por encima de lo que tiene, sin borrar lo
+que el archivo no menciona.
+
+En `Data`: `SocialTie`, `NpcDefinitionSO`, `GossipConfigSO` y `ActionDefinitionSO`, más ocho assets. La
 aldea es una cadena conectada: `son → blacksmith@90 → villager@50 → elder@40`.
 
-En `Core`, cinco eventos: `OnActionCommitted`, `OnActionWitnessed`, `OnRelationshipChanged`, `OnRumorSpread` y
-`OnRelationshipsRestored`. Los cuatro de la tienda no están, a propósito: nada los publicaría ni los
-escucharía todavía (R12).
+En `Core`, nueve eventos de la aldea: `OnActionCommitted`, `OnActionWitnessed`, `OnRelationshipChanged`,
+`OnRumorSpread` y `OnRelationshipsRestored` del chisme, y `OnShopTermsChanged`, `OnPurchaseApproved`,
+`OnPurchaseRefused` y `OnPurchaseSettled` de la tienda. Son cuatro y no cinco: el plan contaba un evento
+para pedir la compra, y no hizo falta porque pedir es `OnActionCommitted`.
 
-110 tests de EditMode cubren los tres dominios, y 23 de PlayMode los adapters dentro de una escena real.
+Los 167 tests de EditMode del juego cubren los dominios y el texto del HUD, y los 36 de PlayMode los
+adapters dentro de una escena real.
 
 El `GossipManager` vive en el objeto `SocialGraph` de `Scene_Game`, con los siete assets asignados. Si
 algo de esa configuración falta o no cuadra, el componente registra el motivo concreto y se deshabilita
@@ -357,29 +396,31 @@ E junto al cofre
   -> Gossip: el hijo pasa a -10, y encola el rumor
   -> tras el retardo por salto: herrero -5, aldeano -1, el anciano nunca se entera
   -> OnRelationshipChanged por cada cambio real
+  -> Shop: el herrero pasa de 5 (100 %) a 6 (110 %), y lo publica en OnShopTermsChanged
+  -> HUD: las tres opiniones, los dos saltos del rumor y el precio nuevo
   -> Save: tres filas en save.json al pausar
 ```
 
+Y la compra, después de ese robo. `ShopFlowTests` recorre el mismo camino desde la tecla, a precio base:
+
+```
+E junto al mostrador
+  -> OnActionCommitted { trade, contra blacksmith }
+  -> Npcs: lo ve el herrero; Gossip recibe un delta 0 y no pasa nada
+  -> Shop: el herrero no se niega, así que OnPurchaseApproved { horseshoe, 6 }
+  -> Save: TrySpend(6), y OnPurchaseSettled { paid } diga lo que diga el saldo
+  -> HUD: la moneda nueva y "bought horseshoe from blacksmith for 6"
+```
+
 Ninguna de esas flechas es una referencia entre assemblies. `Actions` no sabe que alguien mira, `Npcs`
-no sabe qué opina nadie, `Gossip` no sabe que hay un archivo, y `Save` no sabe qué es un rumor.
+no sabe qué opina nadie, `Gossip` no sabe que hay un archivo ni una tienda, `Shop` no sabe cómo viajó
+el rumor, y `Save` no sabe qué es un rumor ni por qué la herradura cuesta 6.
 
-**El único aviso que queda es información buena.** `OnRumorSpread` ya tiene productor y todavía no
-tiene consumidor, así que en cuanto robes de verdad `EventBus` avisará de que se publica sin
-suscriptores. No se silencia: es exactamente lo que dice que el HUD de opinión (hito 11) aún no
-aprovecha lo que el chisme ya está contando.
-
-### Lo que falta
-
-| # | Hito |
-|---|---|
-| 10 | `Shop`: `PricingPolicy`, `Shopkeeper`, y los cinco eventos que faltan |
-| 11 | El HUD mostrando la opinión |
-
-El recorrido completo del caso del herrero, cuando exista: el jugador roba y `Actions` publica
-`OnActionCommitted`; `Npcs` resuelve quién estaba al alcance y publica un `OnActionWitnessed` por
-testigo; `Gossip` aplica el delta y hace viajar el rumor decayendo por salto y ponderado por confianza;
-cada cambio publica `OnRelationshipChanged`; `Shop` guarda su propio multiplicador y la próxima compra
-sale más cara o se rechaza.
+**El aviso de `OnRumorSpread` ya no sale.** Desde el hito 9 el rumor se publicaba sin nadie
+escuchando; desde el 11 lo escucha el HUD, igual que los tres eventos de la tienda que no van a
+`Save`. `HudFlowTests` no suscribe sumideros a propósito y falla si algo de la aldea se publica sin
+consumidor. En un build de release, donde la assembly `Debug` no compila, el aviso vuelve, y es
+cierto: dice que todavía no hay una interfaz de jugador que muestre nada de esto (A1).
 
 La decisión de diseño que sostiene todo: **`Shop` no puede consultar a `Gossip`** (R3), así que el
 estado de relaciones se empuja, no se tira. Es el mismo patrón que ya usa `DebugHud` con
@@ -404,7 +445,6 @@ historia depende casi toda de su magnitud inicial:
 Que un salto se trunque a cero no es un fallo: es lo que hace que un desaire menor no se convierta en
 noticia en toda la aldea. `Robbery` está hoy en −10, así que el rumor muere en el aldeano.
 
-`Pickups` se queda mientras tanto. Es hoy el único consumidor del pool y lo único que hace que
-`SaveSystem` escriba el archivo, y el README de la plantilla avisa de no borrarlo sin reemplazo. Se
-revisará cuando `Shop` y `Gossip` sostengan el ciclo.
+`Pickups` se queda, y ahora con motivo propio: las esferas son la única fuente de moneda, y la moneda
+es lo que la tienda cobra. Sigue siendo además el único consumidor del pool.
 

@@ -56,13 +56,14 @@ grafías de la misma palabra en la misma ruta. No rompe nada, pero conviene eleg
 este proyecto (`bc03fb4`), la capa de dominio del chisme (`99acc35` y `fc30717`), el hito 6 (`59d5399`):
 el adapter `GossipManager` y su cableado en `Scene_Game`, el hito 7 (`e25ebe2`): `SaveData` v2 y la
 persistencia de las opiniones, el hito 8 (`fb92d06`): la assembly `Npcs` y los cuatro aldeanos en la
-escena, y el hito 9: la assembly `Actions` y los dos objetos con los que el jugador actúa. Medido el
-2026-09-20 con el Editor abierto y el CLI de Unity MCP:
+escena, el hito 9 (`da207a4`): la assembly `Actions` y los dos objetos con los que el jugador actúa, el
+hito 10: la assembly `Shop` y el mostrador del herrero, y el hito 11: el HUD de la aldea. Medido el
+2026-09-21 con el Editor abierto y el CLI de Unity MCP:
 
 | Suite | Tests | Errores en consola | Warnings |
 |---|---|---|---|
-| EditMode | 202 en verde | 6 | 7 |
-| PlayMode | 35 en verde | 7 | 2 |
+| EditMode | 237 en verde | 6 | 7 |
+| PlayMode | 48 en verde | 7 | 2 |
 
 Los 6 y los 7 errores son los esperados: cada test de un caso de error declara su mensaje con
 `LogAssert.Expect`. Los dos que subieron el número de PlayMode de 5 a 7 son
@@ -75,21 +76,23 @@ Los 6 y los 7 errores son los esperados: cada test de un caso de error declara s
 `[ObjectPoolManager] Pool 'Pickup' empty. Expanding.`: los cuatro tests de persistencia arrancan el juego
 entero, cada arranque pide cuatro pickups, el pool tiene cuatro, y con más arranques seguidos le toca
 expandirse. Se comprobó leyendo la consola, no adivinando, y `PickupFlowTests` sigue en verde. Antes de
-tratarlo como un fallo, mirar si el número cambia al añadir o quitar tests que arranquen el juego.
+tratarlo como un fallo, mirar si el número cambia al añadir o quitar tests que arranquen el juego. Los
+hitos 10 y 11 añadieron trece tests que arrancan el juego y el número se quedó en 2.
 
-De los 202 de EditMode, **70 son heredados de la plantilla y 132 son del juego**: 29 de
+De los 237 de EditMode, **70 son heredados de la plantilla y 167 son del juego**: 29 de
 `RelationshipGraph`, 22 de `RumorPropagator`, 24 de `GossipService`, 20 de `RelationshipStore`, 20 de
-`PerceptionResolver`, 15 de `InteractionResolver` y 2 nuevos en `SaveMigrationsTests`. De los 35 de
-PlayMode, **12 son heredados y 23 nuevos**: 6 en `GossipFlowTests`, 4 en
-`RelationshipPersistenceTests`, 6 en `PerceptionFlowTests` y 7 en `InteractionFlowTests`.
+`PerceptionResolver`, 15 de `InteractionResolver`, 18 de `PricingPolicy`, 17 nuevos en
+`DebugHudModelTests` y 2 nuevos en `SaveMigrationsTests`. De los 48 de PlayMode, **12 son heredados y
+36 nuevos**: 6 en `GossipFlowTests`, 4 en `RelationshipPersistenceTests`, 6 en `PerceptionFlowTests`, 7
+en `InteractionFlowTests`, 9 en `ShopFlowTests` y 4 en `HudFlowTests`.
 
 **Del chisme existe la capa de dominio y su adapter.** En `Runtime/Gosip/`, cinco tipos con la forma de
 cuatro capas que ya usan `Save` y `Pickups`: `RelationshipGraph` y `SocialGraph` son datos puros,
 `RumorPropagator` planea el recorrido como datos, `GossipService` muta y publica, y `GossipManager` es
 el `MonoBehaviour` fino que construye el servicio desde los assets, se suscribe al bus y llama a `Tick`.
 En `Data`, cuatro tipos de configuración (`SocialTie`, `NpcDefinitionSO`, `GossipConfigSO`,
-`ActionDefinitionSO`) y siete assets: cuatro NPCs en `SO/NPCS/`, más `Robbery`, `Action_Help` y
-`NewGossipConfig`. La aldea es una cadena conectada: `son → blacksmith@90 → villager@50 → elder@40`.
+`ActionDefinitionSO`) y ocho assets: cuatro NPCs en `SO/NPCS/`, más `Robbery`, `Action_Help`,
+`Action_Trade` (desde el hito 10) y `NewGossipConfig`. La aldea es una cadena conectada: `son → blacksmith@90 → villager@50 → elder@40`.
 
 **El call site ya existe, y eso era el hito 6.** `GossipManager` vive en el objeto `SocialGraph` de
 `Scene_Game` con los siete assets asignados, y `GossipFlowTests` comprueba en una escena real que un
@@ -120,19 +123,26 @@ y su `ActionDefinitionSO`) e `InteractionReader` (lee `Interact`, comprueba que 
 y publica `OnActionCommitted`). En `Scene_Game` hay un `Strongbox` a un paso del punto de salida y un
 `Well` fuera de alcance, para que caminar signifique algo.
 
-**La cadena está cerrada de la tecla al disco**, y `InteractionFlowTests` la recorre entera. Lo que
-falta ya no es maquinaria sino consecuencia visible: el herrero no reacciona (hito 10) y el HUD no
-muestra opiniones (hito 11).
+**La cadena está cerrada de la tecla al disco**, y `InteractionFlowTests` la recorre entera.
 
-**Lo que falta, en orden.** Cada hito es verificable por sí solo.
+**El hito 10 le dio consecuencia.** La assembly `Shop` tiene `PricingPolicy` (dominio puro: 2 % por
+punto de opinión, redondeado hacia arriba, suelo del 50 % y negativa a partir de -30), `ShopTerms` y
+`Shopkeeper` (el adapter que guarda su copia de la opinión del herrero sobre el jugador y responde a la
+acción de comprar). En `Scene_Game` hay un objeto `Shop` con su hijo `Counter` en `(-7, 0.5, 6)`, que
+lleva `Action_Trade` contra el herrero. Un robo que el herrero solo oyó sube la herradura de 5 a 6, y
+`ShopFlowTests` lo comprueba desde la tecla.
 
-| # | Hito | Qué desbloquea |
-|---|---|---|
-| 10 | Assembly `Shop`: `PricingPolicy`, `Shopkeeper`, y los cinco eventos que faltan | Que el herrero cobre más o se niegue |
-| 11 | `DebugHudModel` y `DebugHud` mostrando la opinión | Verlo funcionar sin depurador |
+En `Core` entraron los cuatro eventos de la tienda: `OnShopTermsChanged`, `OnPurchaseApproved`,
+`OnPurchaseRefused` y `OnPurchaseSettled`. `SaveSystem` escucha el segundo, intenta cobrar y publica el
+cuarto.
 
-Los hitos 6 a 9 están hechos y la cadena funciona entera. Falta que el herrero reaccione (10) y que
-todo esto se vea sin depurador (11).
+**El hito 11 lo hizo visible.** `DebugHudModel` y `DebugHud` muestran las opiniones con su motivo, los
+tres últimos saltos del rumor, lo que cobra la tienda y cómo acabó la última compra. `OnRumorSpread`
+tiene por fin consumidor y el aviso de publicar sin suscriptores ya no sale al jugar en el Editor.
+`HudFlowTests` no suscribe sumideros y falla si algo de la aldea se publica sin nadie escuchando.
+
+**Los once hitos del plan están cerrados.** Lo que queda en [Pendientes](#pendientes) son peticiones
+nuevas, no partes del plan original.
 
 ## Decisiones tomadas
 
@@ -173,15 +183,41 @@ que sí hacía falta era la regla de alcance, con una respuesta definida para el
 las acciones necesitan validarse contra una lista (permisos, cooldowns, verbos desbloqueables), ese es
 el momento de que exista un catálogo, y no antes.
 
-**`Pickups` se queda.** Es hoy el único consumidor del pool y lo único que hace que `SaveSystem`
-escriba el archivo. El README de la plantilla avisa de no borrarlo sin reemplazo, porque sin consumidor
-el pool y el guardado vuelven a ser código que nunca se ejecuta, que es justo el defecto central de
-HamsterBall. Se revisará cuando `Shop` y `Gossip` sostengan el ciclo.
+**`Pickups` se queda, ya con motivo de juego.** Las esferas son la única fuente de moneda y la moneda es
+lo que cobra el herrero, así que ahora sostienen el ciclo en vez de ser solo el consumidor del pool que
+heredó la plantilla.
 
 **El estado de relaciones se empuja, no se tira.** `Shop` no puede referenciar `Gossip` (R3), así que
 cada consumidor cachea lo suyo a partir de `OnRelationshipChanged`. Se descartó mover el almacén a
 `Core`: convertiría un concepto de gameplay en dependencia de todos. El detalle y la resolución del
 orden de carga están en `ARCHITECTURE.md`.
+
+**La tienda tiene cuatro eventos, no cinco.** El plan contaba uno para pedir la compra. No hizo falta:
+el mostrador es un `Interactable` más y pedir es `OnActionCommitted`, el mismo evento que un robo, así
+que `Shop` no referencia `Actions` y la compra pasa por la percepción como cualquier otra acción.
+`Action_Trade` lleva `baseDelta: 0`, así que el herrero te ve comprar y no cambia de opinión. Si algún
+día comprar tiene que mejorar la reputación, se cambia ese número y no el código.
+
+**Que el herrero acepte no significa que puedas pagar.** `Shopkeeper` decide el precio y si vende;
+`SaveSystem`, dueño de la moneda, decide si hay saldo (R7). Por eso existe `OnPurchaseSettled`: sin él,
+una compra sin saldo acabaría en silencio y el mostrador parecería roto (R9). Se descartó que la tienda
+cachease también la moneda, porque serían dos dueños decidiendo lo mismo, y porque `Save` no publica la
+moneda al cargar: la tienda habría arrancado creyendo que tienes 0.
+
+**El precio se redondea hacia arriba, siempre.** A 5 de base, el 110 % es 5.5; truncar lo dejaría en 5
+y el primer rumor no se notaría. La contrapartida, aceptada: un descuento pequeño tampoco se nota (el
+90 % de 5 sigue siendo 5). Una regla en una sola dirección antes que la que más favorezca al jugador en
+cada caso.
+
+**La tienda aplica lo restaurado igual que `Gossip`: por encima.** `OnRelationshipsRestored` no borra lo
+que no menciona, ni en `GossipService.Restore` ni en `Shopkeeper`. Si divergieran, la tienda podría
+cobrar según una opinión distinta de la que tiene la aldea.
+
+**El HUD es el único consumidor de cuatro eventos, y solo compila en el Editor y en development
+builds.** En un build de release, `OnRumorSpread`, `OnShopTermsChanged`, `OnPurchaseRefused` y
+`OnPurchaseSettled` vuelven a avisar de que se publican sin suscriptores. No se silencia: es cierto, y
+dice que el juego todavía no tiene interfaz de jugador (A1). La letra del HUD bajó de 32 a 24 puntos
+porque la aldea añade una docena de líneas.
 
 **Ni push ni PR desde el agente.** El trabajo se deja commiteado y verificado en local, y Fernando hace
 el push y abre el PR. Preguntar antes de empujar, de abrir un PR o de borrar ramas o worktrees.
@@ -399,17 +435,28 @@ placeholders. Si diverge de la de HamsterBall, da igual, ninguna se va a volver 
 3. **No se pudo comprobar si la plantilla tenía cambios sin commitear** en el momento del fork, por el
    guard del shell. `git -C ../Unity/DecoupledTemplate status` desde fuera de esta sesión lo resuelve.
    Si había algo, este fork no lo tiene.
-4. **Construir el resto del chisme: hitos 10 y 11.** Los hitos 6 a 9 se cerraron el 2026-09-20:
-   `Gossip` tiene sus cinco tipos, `Npcs` sus tres, `Actions` sus tres, `Save` va por v2 con
-   `RelationshipRow` y `RelationshipStore`, y hay 132 tests de EditMode más 23 de PlayMode
-   cubriéndolo. Falta la assembly `Shop` y el HUD de opinión. El diseño está en `ARCHITECTURE.md`.
-   **Cuando llegue el hito 10 hay que definir los cuatro eventos de la tienda**, que hasta ahora no
-   existen a propósito porque nadie los publicaría ni los escucharía (R12).
-
-   Nota para el 11: `OnRumorSpread` ya tiene productor y sigue sin consumidor, así que jugar de verdad
-   hace saltar el aviso de `EventBus` por publicar sin suscriptores. No se silencia; el HUD es quien
-   lo apaga al escucharlo.
-5. **Cabos sueltos de autoría en los assets.** Uno de ellos acaba de encarecerse:
+4. **Resuelto el 2026-09-21: el chisme está completo.** Los hitos 10 y 11 cerraron el plan. Lo que
+   sigue son tres peticiones nuevas de Fernando, en este orden:
+   - **Movimiento y cámara 2D, con la vista de Pokémon Negro.** Pendiente de una imagen de referencia
+     de la perspectiva.
+   - **Una herramienta de nodos para crear NPCs y sus relaciones.** Decidido el 2026-09-21: sobre
+     `GraphView`, editando directamente los `NpcDefinitionSO` (siguen siendo la fuente de verdad); las
+     relaciones con el jugador son **opiniones iniciales** editables, como aristas desde un nodo
+     `Player`; y crear un NPC crea el asset y lo añade a la lista del `GossipManager` de `Scene_Game`,
+     dejando la colocación del cuerpo en la escena a mano. Las opiniones iniciales necesitan un campo
+     nuevo en `Data` y que `Gossip` las siembre **solo en una partida nueva y publicándolas** como
+     cambios reales, para que `Save` las escriba: como el guardado es disperso, una opinión que
+     vuelve a cero no deja fila, y si se sembrara en cada arranque reaparecería el valor inicial.
+   - **Que los tests de PlayMode no lean el `save.json` real.** Todos arrancan el juego de verdad, y
+     `Bootstrapper` carga el archivo antes de que el test pueda redirigir el almacenamiento. En cuanto
+     se juega y se pausa con opiniones movidas, `GossipFlowTests` e `InteractionFlowTests` afirman
+     números desplazados por lo guardado. `ShopFlowTests` y `HudFlowTests` lo esquivan publicando una
+     restauración neutra al arrancar; la solución de raíz es una costura de test antes de `Load`.
+5. **La moneda sale como `unknown` en el HUD hasta el primer cambio.** `Save` no publica
+   `OnProgressChanged` al cargar, porque su propio `MarkDirty` lo escucha y la partida se reescribiría
+   sola en la primera pausa. Con la tienda esto se nota más, porque el jugador quiere saber si le llega.
+   Arreglarlo pide un evento de restauración de progreso, el mismo patrón que `OnRelationshipsRestored`.
+6. **Cabos sueltos de autoría en los assets.** Uno de ellos acaba de encarecerse:
    - `NewGossipConfig.asset` conserva el nombre por defecto del `CreateAssetMenu`, y desde el hito 6
      **ya está referenciado** por el `GossipManager` de `Scene_Game`. Renombrarlo sigue siendo barato,
      pero ahora hay que hacerlo con `MoveAsset` desde el Editor, que conserva el GUID; renombrar el
@@ -417,13 +464,14 @@ placeholders. Si diverge de la de HamsterBall, da igual, ninguna se va a volver 
    - `Robbery` lleva `baseDelta: -10`, y con `decayPercentPerHop: 40` el rumor llega al herrero en -5 y
      al aldeano en -1, y muere antes del anciano. Para que cruce la aldea hace falta cerca de -50, o
      bajar el decaimiento. Es una decisión de diseño, no un fallo, pero conviene tomarla a propósito.
-     Ojo: `GossipFlowTests` afirma esos tres números, así que retocar el asset hace fallar el test, que
-     es justo lo que se quiere de un valor que la documentación publica.
+     Ojo: `GossipFlowTests` afirma esos tres números, y `ShopFlowTests` y `HudFlowTests` el precio de 6
+     (110 %) que deja el -5 del herrero, así que retocar el asset hace fallar los tests, que es justo
+     lo que se quiere de un valor que la documentación publica.
    - El `id` de una acción se escribe en `save.json` como `reason` de cada opinión que causa. Hoy es
      `robbery`. Cambiarlo después deja los saves viejos apuntando a una acción que ya no existe.
    - La carpeta `Runtime/Gosip/` contra la assembly `GosipSimulator.Gossip`, y `BlackSmith's Son` con S
      mayúscula contra `The Blacksmith`.
-6. **Control táctil sin decidir.** Si el juego acaba siendo para móvil en vertical, ojo: el
+7. **Control táctil sin decidir.** Si el juego acaba siendo para móvil en vertical, ojo: el
    `OnScreenStick` del Input System funciona sobre UGUI, no sobre UI Toolkit, y el HUD es UI Toolkit.
 
 ## Notas para el trabajo siguiente
