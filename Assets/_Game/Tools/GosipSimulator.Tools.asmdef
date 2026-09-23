@@ -2,7 +2,8 @@
     "name": "GosipSimulator.Tools",
     "rootNamespace": "GosipSimulator.Tools",
     "references": [
-        "GUID:93d59735cb5934ae9958fd79878778e6"
+        "GUID:93d59735cb5934ae9958fd79878778e6",
+        "GUID:ac3349bb5077a4a2dacebe5411bc5ca3"
     ],
     "includePlatforms": [
         "Editor"

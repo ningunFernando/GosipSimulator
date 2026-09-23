@@ -13,7 +13,8 @@
         "GosipSimulator.Gossip",
         "GosipSimulator.Npcs",
         "GosipSimulator.Actions",
-        "GosipSimulator.Shop"
+        "GosipSimulator.Shop",
+        "GosipSimulator.Tools"
     ],
     "includePlatforms": [
         "Editor"

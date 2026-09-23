@@ -6,3 +6,11 @@ GridBackground {
     --spacing: 20;
     --thick-lines: 5;
 }
+
+.npc-node__id{
+    font-size: 10px;
+    -unity-font-style: italic;
+    color: rgba(255, 255, 255, 0.55);
+    padding-left: 6px;
+    padding-right: 6px;
+}

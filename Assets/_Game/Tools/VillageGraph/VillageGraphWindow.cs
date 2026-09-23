@@ -32,6 +32,8 @@ namespace GosipSimulator.Tools
 
             graph.StretchToParentSize();
             rootVisualElement.Add(graph);
+
+            graph.Populate();
         }
 
         #endregion
