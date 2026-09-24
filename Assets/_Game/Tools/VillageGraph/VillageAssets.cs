@@ -1,6 +1,8 @@
 using UnityEditor;
 using System.Collections.Generic;
 using GosipSimulator.Data;
+using GosipSimulator.Core;
+using UnityEngine;
 
 namespace GosipSimulator.Tools
 {
@@ -12,6 +14,8 @@ namespace GosipSimulator.Tools
     public static class VillageAssets
     {
         private const string NPC_FILTER = "t:NpcDefinitionSO";
+
+        private const string LAYOUT_PATH = "Assets/_Game/Tools/VillageGraph/VillageLayout.asset";
 
         // ────────────────────────────────
         //PUBLIC API
@@ -66,6 +70,39 @@ namespace GosipSimulator.Tools
             }
 
             return new NpcSnapshot(definition.Id, definition.DisplayName, copied);
+        }
+
+        public static string GuidOf(UnityEngine.Object asset)
+        {
+            if(asset == null) return string.Empty;
+
+            return AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(asset));
+        }
+
+        public  static VillageLayoutSO LoadLayout()
+        {
+            return AssetDatabase.LoadAssetAtPath<VillageLayoutSO>(LAYOUT_PATH);
+        }
+
+        public static VillageLayoutSO LoadOrCreateLayout()
+        {
+            VillageLayoutSO layout = LoadLayout();
+
+            if(layout != null) return layout;
+
+            layout = ScriptableObject.CreateInstance<VillageLayoutSO>();
+
+            AssetDatabase.CreateAsset(layout, LAYOUT_PATH);
+            AssetDatabase.SaveAssets();
+
+            Log.Trace($"[VillageGrapgh] Created the layout at {LAYOUT_PATH}");
+            return layout;
+        }
+
+        public static void SaveLayout( VillageLayoutSO layout)
+        {
+            EditorUtility.SetDirty(layout);
+            AssetDatabase.SaveAssetIfDirty(layout);            
         }
         #endregion
     }

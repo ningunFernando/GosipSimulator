@@ -14,6 +14,7 @@ namespace GosipSimulator.Tools
     {
         // A path to the style sheet for the graph view. the reason for a path intead of a serialized reference is so the windos need no setup in the inspector
         private const string STYLE_SHEET_PATH = "Assets/_Game/Tools/VillageGraph/VillageGraph.uss";
+        private VillageLayoutSO _layout;
 
         public VillageGraphView()
         {
@@ -26,6 +27,7 @@ namespace GosipSimulator.Tools
 
             AddGrid();
             AddStyleSheet();
+            graphViewChanged = OnGraphViewChanged;
         }
 
         // ────────────────────────────────
@@ -40,6 +42,7 @@ namespace GosipSimulator.Tools
         public void Populate()
         {
             DeleteElements(graphElements.ToList());
+            _layout = VillageAssets.LoadLayout();
 
             List<NpcDefinitionSO> definitions = VillageAssets.LoadAll();
             VillageGraphData data = VillageRules.Build(VillageAssets.ToSnapshots(definitions));
@@ -85,9 +88,15 @@ namespace GosipSimulator.Tools
 
             for (int i = 0; i < data.Npcs.Count; i++)
             {
-                var node = new NpcNode(data.Npcs[i], definitions[i]);
+                string guid = VillageAssets.GuidOf(definitions[i]);
+                var node = new NpcNode(data.Npcs[i], definitions[i], guid);
 
-                node.SetPosition(new Rect(VillageRules.FallbackPosition(i), Vector2.zero));
+                if(_layout == null || !_layout.TryGet(guid, out Vector2 position))
+                {
+                    position = VillageRules.FallbackPosition(i);
+                }
+
+                node.SetPosition(new Rect(position, Vector2.zero));
                 AddElement(node);
 
                 if(!string.IsNullOrWhiteSpace(node.Id) && !nodesById.ContainsKey(node.Id)) nodesById.Add(node.Id,node);
@@ -123,6 +132,40 @@ namespace GosipSimulator.Tools
             for(int i = 0; i < problems.Count; i++) text.Append("\n").Append(problems[i].Message);
 
             Log.Warn(text.ToString());
+        }
+
+        /// <summary>
+        /// Everything the user does to the canvas arrives here before GraphView applies it. Returning
+        /// the change lets it through, which is all this milestone needs; milestone 4 starts refusing
+        /// some of them.
+        /// </summary>
+        private GraphViewChange OnGraphViewChanged(GraphViewChange change)
+        {
+            if (change.movedElements != null) RememberPositions(change.movedElements);
+
+            return change;
+        }
+
+        private void RememberPositions(List<GraphElement> moved)
+        {
+            VillageLayoutSO layout = VillageAssets.LoadOrCreateLayout();
+
+            bool changed = false;
+
+            for (int i = 0; i < moved.Count; i++)
+            {
+                // Edges move with their nodes and have no position of their own to remember.
+                if (!(moved[i] is NpcNode node)) continue;
+
+                changed |= layout.Set(node.Guid, node.GetPosition().position);
+            }
+
+            // A drag that ended where it started is not worth an import of the asset.
+            if (!changed) return;
+
+            _layout = layout;
+
+            VillageAssets.SaveLayout(layout);
         }
         #endregion
     }

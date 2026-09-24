@@ -11,7 +11,6 @@ namespace GosipSimulator.Tools
         /// </summary>
         public const string TELLS = "Tells";
         public const string HEARS = "Hears";
-
         private const string NO_ID = "(no id)";
         private const string ID_CLASS = "npc-node__id";
 
@@ -22,18 +21,18 @@ namespace GosipSimulator.Tools
 
         /// <summary>The asset this node stands for. Never null, and the target of every later edit.</summary>
         public NpcDefinitionSO Definition { get; }
-
+        public string Guid { get; }
         public string Id { get; }
-
         public Port Tells { get; }
         public Port Hears { get; }
 
         #endregion
 
-        public NpcNode(NpcSnapshot snapshot, NpcDefinitionSO definition)
+        public NpcNode(NpcSnapshot snapshot, NpcDefinitionSO definition, string guid)
         {
             Definition = definition;
             Id = snapshot.Id;
+            Guid = guid;
 
             title = string.IsNullOrWhiteSpace(snapshot.DisplayName) ? definition.name : snapshot.DisplayName;
 
