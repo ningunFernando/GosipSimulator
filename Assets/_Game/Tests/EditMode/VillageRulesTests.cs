@@ -157,6 +157,32 @@ namespace GosipSimulator.Tests
                 "The row after the last column starts one row down.");
         }
 
+        [Test]
+        public void ATieToSomebodyNew_IsAllowed()
+        {
+            Assert.IsTrue(VillageRules.CanTie("son", "villager", Npc("son", ("blacksmith", 90)).Ties));
+        }
+
+        [Test]
+        public void ATieToThemselves_IsNeverAllowed()
+        {
+            Assert.IsFalse(VillageRules.CanTie("son", "son", null));
+        }
+
+        [Test]
+        public void ASecondTieToTheSameNpc_IsNotAllowed()
+        {
+            Assert.IsFalse(VillageRules.CanTie("son", "blacksmith", Npc("son", ("blacksmith", 90)).Ties),
+                "Build would only report it, and the line would be hidden under the first one.");
+        }
+
+        [Test]
+        public void ATieWithAnEmptyEnd_IsNotAllowed()
+        {
+            Assert.IsFalse(VillageRules.CanTie("", "blacksmith", null));
+            Assert.IsFalse(VillageRules.CanTie("son", " ", null));
+        }
+
         #endregion
 
         // ────────────────────────────────

@@ -14,10 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: GosipSimulator.Tools::GosipSimulator.Tools.VillageLayoutSO
   _placements:
   - guid: 66f22f8ea2d784111ac31e3b2257281a
-    position: {x: -290, y: 76}
+    position: {x: 173, y: 457}
   - guid: 70e38c6d4e09648b9b14c0682dbc163c
-    position: {x: 218, y: 69}
+    position: {x: -356, y: 473}
   - guid: 9dac32cd456964919969fc284aae3cdc
-    position: {x: -83, y: 63}
+    position: {x: -541, y: 472}
   - guid: 42654cb2d34384d9a993a3e044c71754
-    position: {x: 410, y: 65}
+    position: {x: -121, y: 467}

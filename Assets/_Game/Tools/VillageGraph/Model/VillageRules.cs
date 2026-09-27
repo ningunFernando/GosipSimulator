@@ -56,6 +56,28 @@ namespace GosipSimulator.Tools
         {
             return new Vector2((index % COLUMNS) * SPACING.x, (index/COLUMNS) * SPACING.y);
         }
+
+
+        /// <summary>
+        /// Whether a new tie from one NPC to another is allowed. The same rules Build reports as
+        /// problems, asked before the fact: an edit that would create a problem is refused, rather than
+        /// written and then complained about.
+        /// </summary>
+        public static bool CanTie(string fromId, string toId, IReadOnlyList<TieSnapshot> fromTies)
+        {
+            if ( string.IsNullOrWhiteSpace(fromId) || string.IsNullOrWhiteSpace(toId)) return false;
+
+            if ( StringComparer.Ordinal.Equals(fromId, toId)) return false;
+
+            if ( fromTies == null) return true;
+
+            for (int i = 0; i < fromTies.Count; i++)
+            {
+                if(StringComparer.Ordinal.Equals(fromTies[i].OtherNpcId, toId)) return false;
+            }
+
+            return true;
+        }
         
         #endregion
 

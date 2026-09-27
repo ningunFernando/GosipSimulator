@@ -41,7 +41,8 @@ namespace GosipSimulator.Tools
         /// </summary>
         public void Populate()
         {
-            DeleteElements(graphElements.ToList());
+            foreach (GraphElement element in graphElements.ToList()) RemoveElement(element);
+
             _layout = VillageAssets.LoadLayout();
 
             List<NpcDefinitionSO> definitions = VillageAssets.LoadAll();
@@ -54,6 +55,28 @@ namespace GosipSimulator.Tools
             LogProblems(data.Problems);
         }
         
+        public override List<Port> GetCompatiblePorts(Port startPort, NodeAdapter nodeAdapter)
+        {
+            var compatible = new List<Port>();
+
+            foreach (Port port in ports.ToList())
+            {
+                //An Edge joins an output to an input on two dferent nodes, carrying the same thing.
+                if (port.direction == startPort.direction) continue;
+                if(port.node == startPort.node) continue;
+                if(port.portType != startPort.portType) continue;
+
+                Port output = startPort.direction == Direction.Output ? startPort : port;
+                Port input = startPort.direction == Direction.Output ? port : startPort;
+
+                if (output.node is NpcNode from && input.node is NpcNode to && CanTie(from, to))
+                {
+                    compatible.Add(port);
+                }
+            }
+
+            return compatible;
+        }
 
         #endregion
 
@@ -116,9 +139,7 @@ namespace GosipSimulator.Tools
 
             Edge edge = from.Tells.ConnectTo(to.Hears);
             
-            edge.tooltip = $"{tie.FromId} tells {tie.ToId}, trust: {tie.Trust}";
-
-            edge.capabilities &= ~Capabilities.Deletable;
+            edge.tooltip = TooltipFor(tie.FromId, tie.ToId, tie.Trust);
 
             AddElement(edge);
         }
@@ -142,6 +163,8 @@ namespace GosipSimulator.Tools
         private GraphViewChange OnGraphViewChanged(GraphViewChange change)
         {
             if (change.movedElements != null) RememberPositions(change.movedElements);
+            if (change.edgesToCreate    != null) WriteNewTies(change.edgesToCreate);
+            if (change.elementsToRemove != null) RemoveDeletedTies(change.elementsToRemove);
 
             return change;
         }
@@ -166,6 +189,53 @@ namespace GosipSimulator.Tools
             _layout = layout;
 
             VillageAssets.SaveLayout(layout);
+        }
+
+        private static bool CanTie(NpcNode from, NpcNode to)
+        {
+            // Read from the asset rather than from the node, so a tie written since the last redraw
+            // counts.
+            return VillageRules.CanTie(from.Id, to.Id, VillageAssets.ToSnapshot(from.Definition).Ties);
+        }
+
+        private static void WriteNewTies(List<Edge> edges)
+        {
+            for (int i = edges.Count - 1; i >= 0; i--)
+            {
+                Edge edge = edges[i];
+
+                if (edge.output.node is NpcNode from && edge.input.node is NpcNode to && CanTie(from, to) &&
+                VillageEdits.AddTie(from.Definition, to.Id, VillageEdits.DEFAULT_TRUST))
+                {
+                    edge.tooltip = TooltipFor(from.Id, to.Id, VillageEdits.DEFAULT_TRUST);
+                    continue;
+                }
+                //Refused, so graphview never draws it
+                edges.RemoveAt(i);
+            }
+        }
+
+                /// <summary>The same deal in reverse: a line only goes away when its tie did.</summary>
+        private static void RemoveDeletedTies(List<GraphElement> elements)
+        {
+            for (int i = elements.Count - 1; i >= 0; i--)
+            {
+                // Nodes cannot be deleted until milestone 8, so edges are all this can be today.
+                if (!(elements[i] is Edge edge)) continue;
+
+                if (edge.output.node is NpcNode from && edge.input.node is NpcNode to &&
+                    VillageEdits.RemoveTie(from.Definition, to.Id))
+                {
+                    continue;
+                }
+
+                elements.RemoveAt(i);
+            }
+        }
+
+        private static string TooltipFor(string fromId, string toId, int trust)
+        {
+            return $"{fromId} tells {toId}. Trust:{trust}";
         }
         #endregion
     }
